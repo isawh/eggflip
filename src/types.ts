@@ -14,6 +14,7 @@ export type Screen =
   | 'collection'
   | 'upgrade'
   | 'shop'
+  | 'more'
   | 'referral'
   | 'daily'
   | 'prestige';

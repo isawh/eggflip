@@ -27,7 +27,6 @@ import {
   canClaimDailyReward,
   createOwnedCreature,
   formatNumber,
-  getBaseIncomePerMinute,
   getCooldownLabel,
   getCreatureDefinition,
   getCreatureIncomePerMinute,
@@ -207,7 +206,6 @@ function App() {
   );
 
   const totalIncome = getTotalIncomePerMinute(gameState, now);
-  const totalEggs = getEggCount(gameState);
   const referralLink = getReferralLink(gameState.referralCode);
   const telegramShareUrl = getTelegramShareUrl(referralLink);
 
@@ -495,31 +493,10 @@ function App() {
       <main className="phone-frame">
         <header className="top-header">
           <div>
-            <p className="eyebrow">Telegram Mini App</p>
             <h1>{GAME_TITLE}</h1>
             {telegramDetected && <span className="telegram-label">Running in Telegram</span>}
           </div>
-          <div className="top-actions">
-            <button
-              className={`sound-toggle ${soundEnabled ? 'enabled' : ''}`}
-              type="button"
-              aria-label={soundEnabled ? 'Disable sound' : 'Enable sound'}
-              aria-pressed={soundEnabled}
-              onClick={toggleSound}
-            >
-              {soundEnabled ? '🔊' : '🔇'}
-            </button>
-            <div className="egg-token" aria-label={`${totalEggs} eggs`}>
-              🥚 {totalEggs}
-            </div>
-          </div>
         </header>
-
-        <section className="stats-grid" aria-label="Player resources">
-          <StatPill icon="🪙" label="Coins" value={formatNumber(gameState.coins)} />
-          <StatPill icon="💎" label="Gems" value={formatNumber(gameState.gems)} />
-          <StatPill icon="⚡" label="Income" value={`${formatNumber(totalIncome)}/min`} />
-        </section>
 
         {feedbackMessage && <div className="feedback-toast">{feedbackMessage}</div>}
         {floatingCoins && <div className="floating-coins">{floatingCoins} coins</div>}
@@ -531,13 +508,7 @@ function App() {
               totalIncome={totalIncome}
               now={now}
               onHatch={hatchPreferredEgg}
-              onOpenShop={() => setActiveScreen('shop')}
               onClaimFreeEgg={claimFreeEgg}
-              onBuyBasic={buyBasicEgg}
-              onBuyPremium={buyPremiumEgg}
-              onOpenDaily={() => setActiveScreen('daily')}
-              onOpenReferral={() => setActiveScreen('referral')}
-              onOpenPrestige={() => setActiveScreen('prestige')}
             />
           )}
           {activeScreen === 'hatch' && (
@@ -577,6 +548,13 @@ function App() {
               onBuyBasic={buyBasicEgg}
               onBuyPremium={buyPremiumEgg}
               onPurchaseProduct={purchasePaidProduct}
+            />
+          )}
+          {activeScreen === 'more' && (
+            <MoreScreen
+              soundEnabled={soundEnabled}
+              onNavigate={setActiveScreen}
+              onToggleSound={toggleSound}
             />
           )}
           {activeScreen === 'referral' && (
@@ -863,13 +841,7 @@ interface HomeScreenProps {
   totalIncome: number;
   now: number;
   onHatch: () => void;
-  onOpenShop: () => void;
   onClaimFreeEgg: () => void;
-  onBuyBasic: () => void;
-  onBuyPremium: () => void;
-  onOpenDaily: () => void;
-  onOpenReferral: () => void;
-  onOpenPrestige: () => void;
 }
 
 function HomeScreen({
@@ -877,33 +849,26 @@ function HomeScreen({
   totalIncome,
   now,
   onHatch,
-  onOpenShop,
   onClaimFreeEgg,
-  onBuyBasic,
-  onBuyPremium,
-  onOpenDaily,
-  onOpenReferral,
-  onOpenPrestige,
 }: HomeScreenProps) {
   const totalEggs = getEggCount(gameState);
   const freeReadyAt = getFreeEggReadyAt(gameState);
   const freeReady = now >= freeReadyAt;
   const freeCooldown = getCooldownLabel(freeReadyAt - now);
-  const boostRemainingMs = getIncomeBoostRemainingMs(gameState, now);
   const tierProgress = getTierProgress(gameState);
-  const baseIncome = getBaseIncomePerMinute(gameState);
-  const progressionGoals = [
-    { label: 'Reach Tier 2', complete: gameState.playerTier >= 2 },
-    { label: 'Reach 100 income/min', complete: baseIncome >= 100 },
-    { label: 'Unlock Epic creatures', complete: gameState.playerTier >= 3 },
-  ];
 
   return (
     <div className="screen-content home-screen">
+      <section className="stats-grid home-stats" aria-label="Player resources">
+        <StatPill icon="Coins" label="Coins" value={formatNumber(gameState.coins)} />
+        <StatPill icon="Gems" label="Gems" value={formatNumber(gameState.gems)} />
+        <StatPill icon="Inc" label="Income" value={`${formatNumber(totalIncome)}/min`} />
+      </section>
+
       <div className="home-hero">
         <div className="hero-copy">
-          <span>Ready to flip?</span>
-          <strong>{totalEggs > 0 ? `${totalEggs} eggs waiting` : 'Restock eggs'}</strong>
+          <span>Egg</span>
+          <strong>{totalEggs > 0 ? `${totalEggs} ready` : 'Empty'}</strong>
         </div>
         <div className="hero-egg" aria-hidden="true">
           <AssetImage alt="Egg" className="hero-egg-asset" fallback="🥚" src={EGG_IMAGE_PATH} />
@@ -932,45 +897,10 @@ function HomeScreen({
           <strong>{tierProgress.progressLabel}</strong>
         </div>
       </div>
-
-      <div className="home-metrics">
-        <div className="income-card premium-card">
-          <span>Coins per minute</span>
-          <strong>{formatNumber(totalIncome)}</strong>
-        </div>
-        <div className="streak-card premium-card">
-          <span>Premium eggs</span>
-          <strong>{gameState.premiumEggs}</strong>
-        </div>
-      </div>
-
-      <div className="goal-strip" aria-label="Progression goals">
-        {progressionGoals.map((goal) => (
-          <div className={goal.complete ? 'goal-chip complete' : 'goal-chip'} key={goal.label}>
-            <span>{goal.complete ? 'Done' : 'Goal'}</span>
-            <strong>{goal.label}</strong>
-          </div>
-        ))}
-      </div>
-
-      {!gameState.firstEggBoostUsed && (
-        <div className="first-boost-card">
-          <span>First Egg Boost</span>
-          <strong>Guaranteed Rare+ on your first hatch</strong>
-        </div>
-      )}
-
-      {boostRemainingMs > 0 && (
-        <div className="boost-card">
-          <span>⚡ x2 income active</span>
-          <strong>{getCooldownLabel(boostRemainingMs)}</strong>
-        </div>
-      )}
-
       <div className="cooldown-card">
         <div>
-          <span className="status-title">Free egg</span>
-          <strong>{freeReady ? 'Ready now' : freeCooldown}</strong>
+          <span className="status-title">Current egg</span>
+          <strong>{freeReady ? 'Ready' : freeCooldown}</strong>
           <p>
             Free {gameState.eggs.free} · Basic {gameState.eggs.basic} · Premium {gameState.premiumEggs}
           </p>
@@ -980,32 +910,6 @@ function HomeScreen({
         </button>
       </div>
 
-      <div className="quick-shop">
-        <button className="quick-button coin" onClick={onBuyBasic} type="button">
-          <span>🥚 Basic</span>
-          <strong>{ECONOMY.basicEggCoinCost} coins</strong>
-        </button>
-        <button className="quick-button gem" onClick={onBuyPremium} type="button">
-          <span>✨ Premium</span>
-          <strong>{ECONOMY.premiumEggGemCost} gems</strong>
-        </button>
-        <button className="quick-button reward" onClick={onOpenDaily} type="button">
-          <span>⭐ Daily</span>
-          <strong>Claim</strong>
-        </button>
-        <button className="quick-button invite" onClick={onOpenReferral} type="button">
-          <span>🎁 Invite</span>
-          <strong>Bonus</strong>
-        </button>
-        <button className="quick-button essence" onClick={onOpenPrestige} type="button">
-          <span>Essence</span>
-          <strong>{gameState.essence} owned</strong>
-        </button>
-      </div>
-
-      <button className="secondary-action shop-link" onClick={onOpenShop} type="button">
-        Open full shop
-      </button>
     </div>
   );
 }
@@ -1238,50 +1142,69 @@ function ShopScreen({
   const freeReady = now >= freeReadyAt;
   const cooldown = getCooldownLabel(freeReadyAt - now);
   const boostRemainingMs = getIncomeBoostRemainingMs(gameState, now);
+  const eggProductIds: ProductId[] = [
+    PRODUCT_IDS.premiumEggPack3,
+    PRODUCT_IDS.premiumEggPack10,
+    PRODUCT_IDS.extraCreatureSlot,
+    PRODUCT_IDS.starterPack,
+  ];
+  const boostProductIds: ProductId[] = [PRODUCT_IDS.instantHatch, PRODUCT_IDS.incomeBoost24h];
+  const eggProducts = PAID_PRODUCTS.filter((product) => eggProductIds.includes(product.id));
+  const boostProducts = PAID_PRODUCTS.filter((product) => boostProductIds.includes(product.id));
 
   return (
     <div className="screen-content shop-screen">
       <div className="section-heading">
         <h2>Shop</h2>
-        <span>✨ {gameState.premiumEggs} premium</span>
+        <span>{gameState.premiumEggs} Pro eggs</span>
       </div>
 
       {boostRemainingMs > 0 && (
         <div className="boost-card shop-boost">
-          <span>⚡ x2 income active</span>
+          <span>x2 active</span>
           <strong>{getCooldownLabel(boostRemainingMs)}</strong>
         </div>
       )}
 
-      <div className="shop-section-label">Free</div>
+      <div className="shop-section-label">Eggs</div>
       <ShopItem
         variant="free"
-        icon="🥚"
+        icon="Egg"
         title="Free Egg"
-        subtitle={freeReady ? 'Ready now' : `Ready in ${cooldown}`}
+        subtitle={freeReady ? 'Ready' : cooldown}
         action={freeReady ? 'Claim' : cooldown}
         onClick={onClaimFreeEgg}
       />
-      <div className="shop-section-label">Coin and gem eggs</div>
       <ShopItem
         variant="coin"
-        icon="🥚"
+        icon="Basic"
         title="Basic Egg"
-        subtitle={`Normal odds up to Tier ${gameState.playerTier}`}
+        subtitle={`Tier ${gameState.playerTier}`}
         action={`${ECONOMY.basicEggCoinCost} coins`}
         onClick={onBuyBasic}
       />
       <ShopItem
         variant="gem"
-        icon="✨"
-        title="Premium Egg"
-        subtitle="Better odds, still tier-capped"
+        icon="Pro"
+        title="Pro Egg"
+        subtitle="Better odds"
         action={`${ECONOMY.premiumEggGemCost} gems`}
         onClick={onBuyPremium}
       />
-      <div className="shop-section-label">Premium products</div>
       <div className="paid-products">
-        {PAID_PRODUCTS.map((product) => (
+        {eggProducts.map((product) => (
+          <PaidProductCard
+            isPurchasing={purchasingProductId === product.id}
+            key={product.id}
+            product={product}
+            onPurchase={() => onPurchaseProduct(product)}
+          />
+        ))}
+      </div>
+
+      <div className="shop-section-label">Boosts</div>
+      <div className="paid-products">
+        {boostProducts.map((product) => (
           <PaidProductCard
             isPurchasing={purchasingProductId === product.id}
             key={product.id}
@@ -1343,6 +1266,41 @@ function PaidProductCard({ product, isPurchasing, onPurchase }: PaidProductCardP
       <button disabled={isPurchasing} onClick={onPurchase} type="button">
         {isPurchasing ? 'Buying...' : `${product.price} ${product.currency}`}
       </button>
+    </div>
+  );
+}
+
+interface MoreScreenProps {
+  soundEnabled: boolean;
+  onNavigate: (screen: Screen) => void;
+  onToggleSound: () => void;
+}
+
+function MoreScreen({ soundEnabled, onNavigate, onToggleSound }: MoreScreenProps) {
+  return (
+    <div className="screen-content more-screen">
+      <div className="section-heading">
+        <h2>More</h2>
+        <span>Menu</span>
+      </div>
+      <div className="more-grid">
+        <button className="more-card prestige" onClick={() => onNavigate('prestige')} type="button">
+          <span aria-hidden="true">P</span>
+          <strong>Prestige</strong>
+        </button>
+        <button className="more-card daily" onClick={() => onNavigate('daily')} type="button">
+          <span aria-hidden="true">D</span>
+          <strong>Daily</strong>
+        </button>
+        <button className="more-card invite" onClick={() => onNavigate('referral')} type="button">
+          <span aria-hidden="true">I</span>
+          <strong>Invite</strong>
+        </button>
+        <button className={`more-card sound ${soundEnabled ? 'active' : ''}`} onClick={onToggleSound} type="button">
+          <span aria-hidden="true">{soundEnabled ? 'On' : 'Off'}</span>
+          <strong>Sound</strong>
+        </button>
+      </div>
     </div>
   );
 }
