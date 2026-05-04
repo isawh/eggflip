@@ -76,9 +76,10 @@ button {
   height: var(--eggflip-shell-height);
   min-height: 100dvh;
   height: 100dvh;
-  display: block;
+  display: flex;
+  justify-content: center;
   overflow: hidden;
-  background-color: var(--eggflip-tg-bg-color);
+  background-color: #87dcff;
   background-image:
     linear-gradient(rgba(255, 255, 255, 0.2) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.16) 1px, transparent 1px);
@@ -87,7 +88,7 @@ button {
 
 .phone-frame {
   width: 100%;
-  max-width: none;
+  max-width: 560px;
   height: var(--eggflip-shell-height);
   min-height: var(--eggflip-shell-height);
   height: 100dvh;
@@ -101,6 +102,7 @@ button {
   flex-direction: column;
   gap: 8px;
   overflow: hidden;
+  margin: 0 auto;
 }
 
 .top-header {
@@ -2073,11 +2075,14 @@ button:disabled {
 
 .bottom-nav {
   position: fixed;
-  left: calc(10px + env(safe-area-inset-left, 0px) + var(--eggflip-safe-area-left) + var(--eggflip-content-safe-area-left));
-  right: calc(10px + env(safe-area-inset-right, 0px) + var(--eggflip-safe-area-right) + var(--eggflip-content-safe-area-right));
+  left: 50%;
+  right: auto;
   bottom: calc(10px + env(safe-area-inset-bottom, 0px) + var(--eggflip-safe-area-bottom) + var(--eggflip-content-safe-area-bottom));
   z-index: 5;
-  width: auto;
+  width: min(
+    calc(100% - 20px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - var(--eggflip-safe-area-left) - var(--eggflip-safe-area-right) - var(--eggflip-content-safe-area-left) - var(--eggflip-content-safe-area-right)),
+    540px
+  );
   min-height: var(--eggflip-bottom-nav-height);
   padding: 7px;
   display: grid;
@@ -2088,6 +2093,7 @@ button:disabled {
   background: var(--eggflip-tg-bottom-bar-color);
   box-shadow: 0 6px 0 #13223d, inset 0 2px 0 rgba(255, 255, 255, 0.72);
   backdrop-filter: blur(10px);
+  transform: translateX(-50%);
 }
 
 .nav-item {
@@ -2296,17 +2302,92 @@ button:disabled {
   }
 }
 
-@media (max-width: 360px) {
+@media (max-width: 430px) {
   :root {
-    --eggflip-bottom-nav-height: 64px;
+    --eggflip-bottom-nav-height: 66px;
   }
 
   .phone-frame {
     gap: 7px;
     padding:
+      calc(9px + env(safe-area-inset-top, 0px) + var(--eggflip-safe-area-top) + var(--eggflip-content-safe-area-top))
+      calc(9px + env(safe-area-inset-right, 0px) + var(--eggflip-safe-area-right) + var(--eggflip-content-safe-area-right))
+      calc(var(--eggflip-bottom-nav-height) + 22px + env(safe-area-inset-bottom, 0px) + var(--eggflip-safe-area-bottom) + var(--eggflip-content-safe-area-bottom))
+      calc(9px + env(safe-area-inset-left, 0px) + var(--eggflip-safe-area-left) + var(--eggflip-content-safe-area-left));
+  }
+
+  .screen-content {
+    gap: 8px;
+  }
+
+  .home-stats {
+    gap: 7px;
+  }
+
+  .home-stats .stat-pill {
+    min-height: 50px;
+    padding: 6px 5px;
+  }
+
+  .home-stats .stat-icon {
+    flex-basis: 24px;
+    width: 24px;
+    height: 24px;
+    font-size: 15px;
+  }
+
+  .home-stats .stat-label {
+    font-size: 9px;
+  }
+
+  .home-stats .stat-pill strong {
+    font-size: 12px;
+  }
+
+  .home-hero {
+    min-height: clamp(184px, 27dvh, 220px);
+    padding: 10px 12px 14px;
+  }
+
+  .hero-egg {
+    width: clamp(108px, 30vw, 132px);
+    height: clamp(108px, 30vw, 132px);
+  }
+
+  .hero-egg-asset .asset-fallback {
+    font-size: 86px;
+  }
+
+  .hatch-action {
+    min-height: 50px;
+    font-size: 22px;
+  }
+
+  .bottom-nav {
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px) + var(--eggflip-safe-area-bottom) + var(--eggflip-content-safe-area-bottom));
+    width: min(
+      calc(100% - 18px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - var(--eggflip-safe-area-left) - var(--eggflip-safe-area-right) - var(--eggflip-content-safe-area-left) - var(--eggflip-content-safe-area-right)),
+      540px
+    );
+    padding: 6px;
+  }
+
+  .nav-item {
+    min-height: 50px;
+  }
+}
+
+@media (max-width: 360px) {
+  :root {
+    --eggflip-bottom-nav-height: 62px;
+  }
+
+  .phone-frame {
+    gap: 6px;
+    padding:
       calc(8px + env(safe-area-inset-top, 0px) + var(--eggflip-safe-area-top) + var(--eggflip-content-safe-area-top))
       calc(8px + env(safe-area-inset-right, 0px) + var(--eggflip-safe-area-right) + var(--eggflip-content-safe-area-right))
-      calc(var(--eggflip-bottom-nav-height) + 22px + env(safe-area-inset-bottom, 0px) + var(--eggflip-safe-area-bottom) + var(--eggflip-content-safe-area-bottom))
+      calc(var(--eggflip-bottom-nav-height) + 20px + env(safe-area-inset-bottom, 0px) + var(--eggflip-safe-area-bottom) + var(--eggflip-content-safe-area-bottom))
       calc(8px + env(safe-area-inset-left, 0px) + var(--eggflip-safe-area-left) + var(--eggflip-content-safe-area-left));
   }
 
@@ -2363,7 +2444,7 @@ button:disabled {
   }
 
   .home-stats .stat-pill {
-    min-height: 48px;
+    min-height: 46px;
   }
 
   .home-stats .stat-label {
@@ -2379,18 +2460,22 @@ button:disabled {
   }
 
   .home-hero {
-    min-height: clamp(184px, 30dvh, 214px);
-    padding: 10px 12px 15px;
+    min-height: clamp(166px, 27dvh, 196px);
+    padding: 8px 10px 12px;
   }
 
   .hero-egg {
-    width: clamp(110px, 34vw, 126px);
-    height: clamp(110px, 34vw, 126px);
+    width: clamp(96px, 31vw, 112px);
+    height: clamp(96px, 31vw, 112px);
+  }
+
+  .hero-egg-asset .asset-fallback {
+    font-size: 76px;
   }
 
   .hatch-action {
-    min-height: 52px;
-    font-size: 22px;
+    min-height: 46px;
+    font-size: 20px;
   }
 
   .cooldown-card {
@@ -2518,14 +2603,16 @@ button:disabled {
   }
 
   .bottom-nav {
-    left: calc(8px + env(safe-area-inset-left, 0px) + var(--eggflip-safe-area-left) + var(--eggflip-content-safe-area-left));
-    right: calc(8px + env(safe-area-inset-right, 0px) + var(--eggflip-safe-area-right) + var(--eggflip-content-safe-area-right));
     bottom: calc(8px + env(safe-area-inset-bottom, 0px) + var(--eggflip-safe-area-bottom) + var(--eggflip-content-safe-area-bottom));
+    width: min(
+      calc(100% - 16px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - var(--eggflip-safe-area-left) - var(--eggflip-safe-area-right) - var(--eggflip-content-safe-area-left) - var(--eggflip-content-safe-area-right)),
+      540px
+    );
     padding: 6px;
   }
 
   .nav-item {
-    min-height: 50px;
+    min-height: 48px;
   }
 
   .nav-item span:first-child {
