@@ -14,6 +14,8 @@ export const FREE_EGG_COOLDOWN_MS = 3 * 60 * 60 * 1000;
 export const MAX_OFFLINE_EARNINGS_MS = 8 * 60 * 60 * 1000;
 export const STREAK_RESET_MS = 48 * 60 * 60 * 1000;
 export const INCOME_BOOST_DURATION_MS = 24 * 60 * 60 * 1000;
+export const REFERRAL_BOOST_DURATION_MS = 48 * 60 * 60 * 1000;
+export const INVITE_POPUP_HATCH_THRESHOLD = 3;
 
 // Economy knobs live here so egg prices, upgrades, rewards, and income can be tuned later.
 export const ECONOMY = {
@@ -21,6 +23,8 @@ export const ECONOMY = {
   premiumEggGemCost: 50,
   referralRewardCoins: 150,
   referralRewardGems: 5,
+  inviteeBonusPremiumEggs: 1,
+  inviteeBonusGems: 25,
   starterPackCoins: 1_500,
   starterPackGems: 100,
   starterPackPremiumEggs: 3,
@@ -130,28 +134,28 @@ export const REFERRAL_MILESTONES: ReferralMilestone[] = [
     id: 'friend-1',
     requiredFriends: 1,
     title: 'First Friend',
-    rewardLabel: '1 Premium Egg',
-    description: 'Start the invite loop with a premium hatch.',
+    rewardLabel: '2 Premium Eggs',
+    description: 'Your first invite pays out fast with two premium hatches.',
     icon: '✨',
-    reward: { type: 'premiumEggs', amount: 1 },
+    reward: { type: 'premiumEggs', amount: 2 },
   },
   {
     id: 'friend-3',
     requiredFriends: 3,
     title: 'Small Squad',
-    rewardLabel: '100 Gems',
+    rewardLabel: '200 Gems',
     description: 'Enough gems to buy more premium eggs.',
     icon: '💎',
-    reward: { type: 'gems', amount: 100 },
+    reward: { type: 'gems', amount: 200 },
   },
   {
     id: 'friend-5',
     requiredFriends: 5,
     title: 'Hype Team',
-    rewardLabel: 'x2 Income 24h',
-    description: 'Double passive income for one full day.',
+    rewardLabel: 'x2 Income 48h',
+    description: 'Double passive income for two full days.',
     icon: '⚡',
-    reward: { type: 'incomeBoost', durationMs: INCOME_BOOST_DURATION_MS },
+    reward: { type: 'incomeBoost', durationMs: REFERRAL_BOOST_DURATION_MS },
   },
   {
     id: 'friend-10',

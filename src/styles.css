@@ -394,6 +394,31 @@ h2 {
   line-height: 1;
 }
 
+.first-boost-card {
+  min-height: 70px;
+  padding: 13px 14px;
+  display: grid;
+  gap: 5px;
+  border: 3px solid #13223d;
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0)),
+    linear-gradient(145deg, #d7c3ff, #72d8ff);
+  box-shadow: 0 5px 0 #13223d, 0 0 22px rgba(159, 92, 255, 0.28), inset 0 2px 0 rgba(255, 255, 255, 0.68);
+}
+
+.first-boost-card span {
+  color: #4d5f79;
+  font-size: 12px;
+  font-weight: 1000;
+}
+
+.first-boost-card strong {
+  color: #13223d;
+  font-size: 18px;
+  line-height: 1.08;
+}
+
 .income-card span,
 .streak-card span {
   color: rgba(19, 34, 61, 0.68);
@@ -1185,6 +1210,42 @@ button:disabled {
   background: linear-gradient(145deg, #ffe3ef, #ff9fc3);
 }
 
+.two-sided-reward-card {
+  min-height: 94px;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  border: 3px solid #13223d;
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.14)),
+    linear-gradient(145deg, #fff176, #72e7ff);
+  box-shadow: 0 5px 0 #13223d, inset 0 2px 0 rgba(255, 255, 255, 0.72);
+}
+
+.two-sided-reward-card div {
+  min-width: 0;
+  padding: 10px;
+  display: grid;
+  gap: 4px;
+  border: 2px solid rgba(19, 34, 61, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.two-sided-reward-card span {
+  color: #607083;
+  font-size: 11px;
+  font-weight: 1000;
+}
+
+.two-sided-reward-card strong {
+  color: #13223d;
+  font-size: 14px;
+  line-height: 1.12;
+}
+
 .invite-emoji {
   display: block;
   margin-bottom: 8px;
@@ -1501,6 +1562,71 @@ button:disabled {
 
 .offline-modal .primary-action {
   width: 100%;
+}
+
+.invite-popup-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 24;
+  display: grid;
+  place-items: center;
+  padding:
+    calc(18px + env(safe-area-inset-top, 0px) + var(--eggflip-safe-area-top))
+    calc(14px + env(safe-area-inset-right, 0px) + var(--eggflip-safe-area-right))
+    calc(18px + env(safe-area-inset-bottom, 0px) + var(--eggflip-safe-area-bottom))
+    calc(14px + env(safe-area-inset-left, 0px) + var(--eggflip-safe-area-left));
+  background: rgba(19, 34, 61, 0.52);
+}
+
+.invite-popup-modal {
+  width: min(100%, 360px);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 11px;
+  border: 3px solid #13223d;
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.1)),
+    linear-gradient(145deg, #fff176 0%, #ff8ebb 48%, #92dcff 100%);
+  box-shadow: 0 8px 0 #13223d, 0 0 32px rgba(255, 77, 141, 0.36), inset 0 3px 0 rgba(255, 255, 255, 0.72);
+  text-align: center;
+  animation: reward-pop 420ms ease-out;
+}
+
+.invite-popup-emoji {
+  font-size: 62px;
+  line-height: 1;
+}
+
+.invite-popup-modal p {
+  color: #374962;
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1.35;
+}
+
+.invite-benefits {
+  display: grid;
+  gap: 6px;
+}
+
+.invite-benefits span {
+  min-height: 34px;
+  padding: 8px 10px;
+  display: grid;
+  place-items: center;
+  border: 2px solid rgba(19, 34, 61, 0.2);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #13223d;
+  font-size: 12px;
+  font-weight: 1000;
+}
+
+.compact-action {
+  min-height: 44px;
 }
 
 .bottom-nav {

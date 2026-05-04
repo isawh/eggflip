@@ -12,6 +12,7 @@ import {
   FREE_EGG_COOLDOWN_MS,
   GAME_TITLE,
   INCOME_BOOST_DURATION_MS,
+  INVITE_POPUP_HATCH_THRESHOLD,
   RARITY_META,
   REFERRAL_MILESTONES,
 } from './constants';
@@ -45,6 +46,7 @@ import {
   applyTelegramThemeColors,
   enableHaptics,
   expandApp,
+  getStartParam,
   isTelegram,
   triggerHapticImpact,
   triggerHapticNotification,
@@ -57,19 +59,22 @@ interface HatchResult {
   definition: CreatureDefinition;
   eggType: EggType;
   isDuplicate: boolean;
+  firstEggBoostApplied: boolean;
 }
 
 interface SessionStart {
   state: GameState;
   offlineCoins: number;
+  inviteeBonusApplied: boolean;
 }
 
 function App() {
   const [sessionStart] = useState<SessionStart>(() => {
     const current = Date.now();
-    const streakState = registerLoginStreak(loadGameState(), current);
+    const referralBonus = applyInviteeReferralBonus(loadGameState());
+    const streakState = registerLoginStreak(referralBonus.state, current);
     const offline = applyOfflineEarnings(streakState, current);
-    return { state: offline.state, offlineCoins: offline.earnedCoins };
+    return { state: offline.state, offlineCoins: offline.earnedCoins, inviteeBonusApplied: referralBonus.applied };
   });
   const [gameState, setGameState] = useState<GameState>(sessionStart.state);
   const [activeScreen, setActiveScreen] = useState<Screen>('home');
@@ -83,6 +88,7 @@ function App() {
   const [purchasingProductId, setPurchasingProductId] = useState<ProductId | null>(null);
   const [soundEnabled, setSoundEnabledState] = useState(() => getSoundEnabled());
   const [telegramDetected, setTelegramDetected] = useState(() => isTelegram());
+  const [invitePopupOpen, setInvitePopupOpen] = useState(false);
   const feedbackTimerRef = useRef<number | null>(null);
   const coinTimerRef = useRef<number | null>(null);
   const upgradeTimerRef = useRef<number | null>(null);
@@ -141,6 +147,18 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!sessionStart.inviteeBonusApplied) {
+      return;
+    }
+
+    playSound('reward_claim');
+    triggerHapticNotification('success');
+    showFeedback(
+      `Invite bonus unlocked: ${ECONOMY.inviteeBonusPremiumEggs} Premium Egg + ${ECONOMY.inviteeBonusGems} gems`,
+    );
+  }, [sessionStart.inviteeBonusApplied]);
+
+  useEffect(() => {
     const timer = window.setInterval(() => {
       const current = Date.now();
       setNow(current);
@@ -181,6 +199,8 @@ function App() {
 
   const totalIncome = getTotalIncomePerMinute(gameState, now);
   const totalEggs = getEggCount(gameState);
+  const referralLink = getReferralLink(gameState.referralCode);
+  const telegramShareUrl = getTelegramShareUrl(referralLink);
 
   const updateGameState = (updater: (state: GameState) => GameState) => {
     setGameState((state) => updater(applyPassiveIncome(state, Date.now())));
@@ -193,7 +213,10 @@ function App() {
       return;
     }
 
-    const definition = rollCreature(eggType);
+    const firstEggBoostApplied = !gameState.firstEggBoostUsed && gameState.hatchesOpened === 0;
+    const shouldShowInvitePopup =
+      !gameState.invitePopupShown && gameState.hatchesOpened + 1 >= INVITE_POPUP_HATCH_THRESHOLD;
+    const definition = rollCreature(eggType, firstEggBoostApplied ? { minimumRarity: 'Rare' } : undefined);
     const isDuplicate = gameState.creatures.some((creature) => creature.creatureId === definition.id);
     const creature = createOwnedCreature(definition);
 
@@ -217,14 +240,26 @@ function App() {
           },
           creatures: [creature, ...state.creatures],
           selectedCreatureUid: creature.uid,
+          hatchesOpened: state.hatchesOpened + 1,
+          firstEggBoostUsed: true,
+          invitePopupShown: state.invitePopupShown || shouldShowInvitePopup,
           lastIncomeAt: state.creatures.length === 0 ? Date.now() : state.lastIncomeAt,
         };
       });
-      setHatchResult({ creature, definition, eggType, isDuplicate });
+      setHatchResult({ creature, definition, eggType, isDuplicate, firstEggBoostApplied });
       setIsHatching(false);
       playSound(getDropSoundName(definition.rarity));
       triggerDropHaptic(definition.rarity);
-      showFeedback(isDuplicate ? 'Duplicate creature received' : 'New creature unlocked');
+      showFeedback(
+        firstEggBoostApplied
+          ? 'First Egg Boost: Rare+ unlocked'
+          : isDuplicate
+            ? 'Duplicate creature received'
+            : 'New creature unlocked',
+      );
+      if (shouldShowInvitePopup) {
+        window.setTimeout(() => setInvitePopupOpen(true), 650);
+      }
     }, 950);
   };
 
@@ -374,8 +409,14 @@ function App() {
     }
   };
 
-  const shareReferralLink = () => {
-    showFeedback('Share placeholder');
+  const shareReferralLink = (telegramShareUrl: string) => {
+    const shareWindow = window.open(telegramShareUrl, '_blank', 'noopener,noreferrer');
+    if (!shareWindow) {
+      showErrorFeedback('Share unavailable');
+      return;
+    }
+
+    showFeedback('Telegram share opened');
   };
 
   const purchasePaidProduct = async (product: MonetizationProduct) => {
@@ -500,6 +541,8 @@ function App() {
           {activeScreen === 'referral' && (
             <ReferralScreen
               gameState={gameState}
+              referralLink={referralLink}
+              telegramShareUrl={telegramShareUrl}
               onClaimMilestone={claimReferralMilestone}
               onCopyLink={copyReferralLink}
               onShareLink={shareReferralLink}
@@ -533,6 +576,140 @@ function App() {
           </div>
         </div>
       )}
+      {invitePopupOpen && (
+        <InvitePopup
+          referralLink={referralLink}
+          onClose={() => setInvitePopupOpen(false)}
+          onCopy={() => copyReferralLink(referralLink)}
+          onOpenReferral={() => {
+            setInvitePopupOpen(false);
+            setActiveScreen('referral');
+          }}
+          onShare={() => shareReferralLink(telegramShareUrl)}
+        />
+      )}
+    </div>
+  );
+}
+
+interface InviteeReferralBonusResult {
+  state: GameState;
+  applied: boolean;
+}
+
+const applyInviteeReferralBonus = (state: GameState): InviteeReferralBonusResult => {
+  const referredByCode = getIncomingReferralCode(state.referralCode);
+
+  if (
+    !referredByCode ||
+    state.claimedInviteeReferralBonus ||
+    state.hatchesOpened > 0 ||
+    state.creatures.length > 0
+  ) {
+    return { state, applied: false };
+  }
+
+  const premiumEggs = state.premiumEggs + ECONOMY.inviteeBonusPremiumEggs;
+
+  return {
+    state: {
+      ...state,
+      gems: state.gems + ECONOMY.inviteeBonusGems,
+      premiumEggs,
+      eggs: {
+        ...state.eggs,
+        premium: premiumEggs,
+      },
+      referredByCode,
+      claimedInviteeReferralBonus: true,
+    },
+    applied: true,
+  };
+};
+
+const getIncomingReferralCode = (ownReferralCode: string): string | null => {
+  const candidates = [getStartParam(), getUrlParam('start'), getUrlParam('startapp'), getUrlParam('ref'), getUrlParam('tgWebAppStartParam')];
+  const normalized = candidates.map(normalizeIncomingReferralCode).find((code): code is string => Boolean(code));
+
+  if (!normalized || normalized === ownReferralCode) {
+    return null;
+  }
+
+  return normalized;
+};
+
+const getUrlParam = (key: string): string | null => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  const fromSearch = new URLSearchParams(window.location.search).get(key);
+  if (fromSearch) {
+    return fromSearch;
+  }
+
+  const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
+  return new URLSearchParams(hash).get(key);
+};
+
+const normalizeIncomingReferralCode = (value: string | null): string | null => {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value.trim().toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 16);
+  return normalized.length >= 6 ? normalized : null;
+};
+
+const getReferralLink = (referralCode: string): string =>
+  `https://t.me/EggFlipBot/app?start=${encodeURIComponent(referralCode)}`;
+
+const getTelegramShareUrl = (referralLink: string): string => {
+  const text = 'Join me in EggFlip. You get a welcome bonus and a boosted first hatch.';
+  return `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(text)}`;
+};
+
+interface InvitePopupProps {
+  referralLink: string;
+  onClose: () => void;
+  onCopy: () => void;
+  onOpenReferral: () => void;
+  onShare: () => void;
+}
+
+function InvitePopup({ referralLink, onClose, onCopy, onOpenReferral, onShare }: InvitePopupProps) {
+  return (
+    <div className="invite-popup-backdrop" role="dialog" aria-modal="true" aria-labelledby="invite-popup-title">
+      <div className="invite-popup-modal">
+        <span className="invite-popup-emoji" aria-hidden="true">
+          🎁
+        </span>
+        <h2 id="invite-popup-title">Invite friends -&gt; get premium eggs</h2>
+        <p>
+          Friends get {ECONOMY.inviteeBonusPremiumEggs} Premium Egg and {ECONOMY.inviteeBonusGems} gems on first open.
+          You unlock bigger rewards as they join.
+        </p>
+        <div className="invite-benefits">
+          <span>1 friend: 2 premium eggs</span>
+          <span>3 friends: 200 gems</span>
+          <span>5 friends: x2 income 48h</span>
+        </div>
+        <div className="fake-link">{referralLink}</div>
+        <div className="share-actions">
+          <button onClick={onCopy} type="button">
+            Copy
+          </button>
+          <button onClick={onShare} type="button">
+            Telegram
+          </button>
+        </div>
+        <button className="primary-action invite-cta" onClick={onOpenReferral} type="button">
+          Open Invite Rewards
+        </button>
+        <button className="secondary-action compact-action" onClick={onClose} type="button">
+          Maybe later
+        </button>
+      </div>
     </div>
   );
 }
@@ -711,6 +888,13 @@ function HomeScreen({
         </div>
       </div>
 
+      {!gameState.firstEggBoostUsed && (
+        <div className="first-boost-card">
+          <span>First Egg Boost</span>
+          <strong>Guaranteed Rare+ on your first hatch</strong>
+        </div>
+      )}
+
       {boostRemainingMs > 0 && (
         <div className="boost-card">
           <span>⚡ x2 income active</span>
@@ -791,7 +975,11 @@ function HatchScreen({ gameState, hatchResult, isHatching, onHatch, onCollection
           <RarityBadge rarity={hatchResult.definition.rarity} />
           <p>{getCreatureIncomePerMinute(hatchResult.creature)} coins/min at level 1</p>
           <strong className="result-note">
-            {hatchResult.isDuplicate ? 'Duplicate creature received' : 'New creature unlocked'}
+            {hatchResult.firstEggBoostApplied
+              ? 'First Egg Boost guaranteed Rare+'
+              : hatchResult.isDuplicate
+                ? 'Duplicate creature received'
+                : 'New creature unlocked'}
           </strong>
           <button className="secondary-action" onClick={onCollection} type="button">
             View Collection
@@ -1092,20 +1280,23 @@ function PaidProductCard({ product, isPurchasing, onPurchase }: PaidProductCardP
 
 interface ReferralScreenProps {
   gameState: GameState;
+  referralLink: string;
+  telegramShareUrl: string;
   onClaimMilestone: (milestone: ReferralMilestone) => void;
   onCopyLink: (referralLink: string) => void;
-  onShareLink: () => void;
+  onShareLink: (telegramShareUrl: string) => void;
   onSimulateFriend: () => void;
 }
 
 function ReferralScreen({
   gameState,
+  referralLink,
+  telegramShareUrl,
   onClaimMilestone,
   onCopyLink,
   onShareLink,
   onSimulateFriend,
 }: ReferralScreenProps) {
-  const referralLink = `https://t.me/EggFlipBot/app?start=${gameState.referralCode}`;
   const nextMilestone =
     REFERRAL_MILESTONES.find((milestone) => gameState.invitedFriendsCount < milestone.requiredFriends) ??
     REFERRAL_MILESTONES[REFERRAL_MILESTONES.length - 1];
@@ -1138,6 +1329,17 @@ function ReferralScreen({
         </div>
       </div>
 
+      <div className="two-sided-reward-card">
+        <div>
+          <span>You get</span>
+          <strong>2 premium eggs at 1 friend</strong>
+        </div>
+        <div>
+          <span>Friend gets</span>
+          <strong>{ECONOMY.inviteeBonusPremiumEggs} Premium Egg + {ECONOMY.inviteeBonusGems} gems</strong>
+        </div>
+      </div>
+
       <div className="referral-progress-card">
         <div>
           <span>Next reward</span>
@@ -1159,8 +1361,8 @@ function ReferralScreen({
           <button onClick={() => onCopyLink(referralLink)} type="button">
             Copy
           </button>
-          <button onClick={onShareLink} type="button">
-            Share
+          <button onClick={() => onShareLink(telegramShareUrl)} type="button">
+            Telegram
           </button>
         </div>
       </div>

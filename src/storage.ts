@@ -29,8 +29,13 @@ export const createInitialGameState = (now = Date.now()): GameState => ({
   incomeBoostUntil: null,
   maxCreatureSlots: STARTING_MAX_CREATURE_SLOTS,
   referralCode: createReferralCode(),
+  referredByCode: null,
   invitedFriendsCount: 0,
   claimedReferralMilestones: [],
+  claimedInviteeReferralBonus: false,
+  hatchesOpened: 0,
+  firstEggBoostUsed: false,
+  invitePopupShown: false,
   dailyRewards: {
     claimedDays: [],
     lastClaimDate: null,
@@ -56,6 +61,7 @@ export const loadGameState = (): GameState => {
     const base = createInitialGameState(now);
     const savedEggs = (saved.eggs ?? {}) as Partial<Record<EggType, unknown>>;
     const savedDailyRewards = (saved.dailyRewards ?? {}) as Partial<DailyRewardState>;
+    const savedCreatures = Array.isArray(saved.creatures) ? saved.creatures : base.creatures;
     const claimedDays = Array.isArray(savedDailyRewards.claimedDays)
       ? savedDailyRewards.claimedDays
           .map((day: unknown) => Math.floor(Number(day)))
@@ -64,6 +70,7 @@ export const loadGameState = (): GameState => {
     const lastIncomeAt = asTimestamp(saved.lastIncomeAt, now);
     const lastActiveAt = asTimestamp(saved.lastActiveAt, lastIncomeAt);
     const premiumEggs = asCount(saved.premiumEggs, asCount(savedEggs.premium, base.premiumEggs));
+    const hatchesOpened = asCount(saved.hatchesOpened, savedCreatures.length);
     const validMilestoneIds = new Set(REFERRAL_MILESTONES.map((milestone) => milestone.id));
     const claimedReferralMilestones = Array.isArray(saved.claimedReferralMilestones)
       ? saved.claimedReferralMilestones.filter((id): id is ReferralMilestoneId => validMilestoneIds.has(id as ReferralMilestoneId))
@@ -80,15 +87,20 @@ export const loadGameState = (): GameState => {
         basic: asCount(savedEggs.basic, base.eggs.basic),
         premium: premiumEggs,
       },
-      creatures: Array.isArray(saved.creatures) ? saved.creatures : base.creatures,
+      creatures: savedCreatures,
       lastIncomeAt,
       lastActiveAt,
       lastFreeEggAt: asTimestamp(saved.lastFreeEggAt, base.lastFreeEggAt),
       incomeBoostUntil: asNullableTimestamp(saved.incomeBoostUntil),
       maxCreatureSlots: Math.max(1, asCount(saved.maxCreatureSlots, base.maxCreatureSlots)),
       referralCode: normalizeReferralCode(saved.referralCode, base.referralCode),
+      referredByCode: normalizeNullableReferralCode(saved.referredByCode),
       invitedFriendsCount: asCount(saved.invitedFriendsCount, base.invitedFriendsCount),
       claimedReferralMilestones,
+      claimedInviteeReferralBonus: asBoolean(saved.claimedInviteeReferralBonus, base.claimedInviteeReferralBonus),
+      hatchesOpened,
+      firstEggBoostUsed: asBoolean(saved.firstEggBoostUsed, savedCreatures.length > 0 || hatchesOpened > 0),
+      invitePopupShown: asBoolean(saved.invitePopupShown, hatchesOpened >= 3),
       dailyRewards: {
         ...base.dailyRewards,
         ...savedDailyRewards,
@@ -98,6 +110,7 @@ export const loadGameState = (): GameState => {
         streakDay: clampStreakDay(savedDailyRewards.streakDay ?? Math.max(1, claimedDays.length || 1)),
         lastLoginAt: asNullableTimestamp(savedDailyRewards.lastLoginAt),
       },
+      referralRewardClaimed: asBoolean(saved.referralRewardClaimed, base.referralRewardClaimed),
     };
   } catch {
     return createInitialGameState();
@@ -121,6 +134,9 @@ const asTimestamp = (value: unknown, fallback: number): number =>
 const asNullableTimestamp = (value: unknown): number | null =>
   typeof value === 'number' && Number.isFinite(value) ? Math.max(0, value) : null;
 
+const asBoolean = (value: unknown, fallback: boolean): boolean =>
+  typeof value === 'boolean' ? value : fallback;
+
 const clampStreakDay = (day: number): number => Math.min(7, Math.max(1, Math.floor(day)));
 
 const createReferralCode = (): string => {
@@ -142,4 +158,13 @@ const normalizeReferralCode = (value: unknown, fallback: string): string => {
 
   const normalized = value.trim().toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 16);
   return normalized.length >= 6 ? normalized : fallback;
+};
+
+const normalizeNullableReferralCode = (value: unknown): string | null => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalized = value.trim().toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 16);
+  return normalized.length >= 6 ? normalized : null;
 };

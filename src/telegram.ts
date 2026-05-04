@@ -34,6 +34,7 @@ interface TelegramInset {
 interface TelegramWebApp {
   initDataUnsafe?: {
     user?: TelegramWebAppUser;
+    start_param?: string;
   };
   themeParams?: TelegramThemeParams;
   safeAreaInset?: TelegramInset;
@@ -103,6 +104,8 @@ const setCssInset = (prefix: string, inset: TelegramInset | undefined) => {
 export const isTelegram = (): boolean => Boolean(getWebApp());
 
 export const getUser = (): TelegramWebAppUser | null => getWebApp()?.initDataUnsafe?.user ?? null;
+
+export const getStartParam = (): string | null => getWebApp()?.initDataUnsafe?.start_param ?? null;
 
 export const expandApp = () => {
   const webApp = getWebApp();

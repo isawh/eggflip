@@ -7,6 +7,7 @@ import {
   MILLISECONDS_PER_MINUTE,
   NORMAL_EGG_RARITY_CHANCES,
   PREMIUM_EGG_RARITY_CHANCES,
+  RARITY_ORDER,
   STREAK_RESET_MS,
 } from './constants';
 import type { CreatureDefinition, DailyReward, EggType, GameState, OwnedCreature, Rarity } from './types';
@@ -75,8 +76,15 @@ const rollRarity = (chances: Array<{ rarity: Rarity; chance: number }>): Rarity 
   return chances[chances.length - 1].rarity;
 };
 
-export const rollCreature = (eggType: EggType): CreatureDefinition => {
-  const chances = eggType === 'premium' ? PREMIUM_EGG_RARITY_CHANCES : NORMAL_EGG_RARITY_CHANCES;
+interface RollCreatureOptions {
+  minimumRarity?: Rarity;
+}
+
+export const rollCreature = (eggType: EggType, options: RollCreatureOptions = {}): CreatureDefinition => {
+  const baseChances = eggType === 'premium' ? PREMIUM_EGG_RARITY_CHANCES : NORMAL_EGG_RARITY_CHANCES;
+  const chances = options.minimumRarity
+    ? baseChances.filter((item) => RARITY_ORDER.indexOf(item.rarity) >= RARITY_ORDER.indexOf(options.minimumRarity as Rarity))
+    : baseChances;
   const rarity = rollRarity(chances);
   const pool = CREATURES.filter((creature) => creature.rarity === rarity);
   return pool[Math.floor(Math.random() * pool.length)] ?? fallbackCreature;

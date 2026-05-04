@@ -74,8 +74,13 @@ export interface GameState {
   incomeBoostUntil: number | null;
   maxCreatureSlots: number;
   referralCode: string;
+  referredByCode: string | null;
   invitedFriendsCount: number;
   claimedReferralMilestones: ReferralMilestoneId[];
+  claimedInviteeReferralBonus: boolean;
+  hatchesOpened: number;
+  firstEggBoostUsed: boolean;
+  invitePopupShown: boolean;
   dailyRewards: DailyRewardState;
   referralRewardClaimed: boolean;
 }
