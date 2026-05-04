@@ -1,6 +1,12 @@
 export type Rarity = 'Common' | 'Rare' | 'Epic' | 'Legendary' | 'Mythic';
 
+export type Tier = 1 | 2 | 3 | 4 | 5;
+
 export type EggType = 'free' | 'basic' | 'premium';
+
+export type PrestigeUpgradeId = 'income' | 'slot' | 'cooldown' | 'dropChance';
+
+export type PrestigeUpgrades = Record<PrestigeUpgradeId, number>;
 
 export type Screen =
   | 'home'
@@ -9,7 +15,8 @@ export type Screen =
   | 'upgrade'
   | 'shop'
   | 'referral'
-  | 'daily';
+  | 'daily'
+  | 'prestige';
 
 export interface CreatureDefinition {
   id: string;
@@ -64,6 +71,10 @@ export interface ReferralMilestone {
 export interface GameState {
   coins: number;
   gems: number;
+  essence: number;
+  totalCoinsEarned: number;
+  prestigeCount: number;
+  prestigeUpgrades: PrestigeUpgrades;
   premiumEggs: number;
   eggs: Record<EggType, number>;
   creatures: OwnedCreature[];
@@ -72,6 +83,7 @@ export interface GameState {
   lastActiveAt: number;
   lastFreeEggAt: number;
   incomeBoostUntil: number | null;
+  playerTier: Tier;
   maxCreatureSlots: number;
   referralCode: string;
   referredByCode: string | null;

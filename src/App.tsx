@@ -13,6 +13,7 @@ import {
   GAME_TITLE,
   INCOME_BOOST_DURATION_MS,
   INVITE_POPUP_HATCH_THRESHOLD,
+  PRESTIGE_UPGRADES,
   RARITY_META,
   REFERRAL_MILESTONES,
 } from './constants';
@@ -20,9 +21,13 @@ import {
   applyDailyReward,
   applyOfflineEarnings,
   applyPassiveIncome,
+  applyPrestigeReset,
+  applyPrestigeUpgrade,
+  applyTierProgression,
   canClaimDailyReward,
   createOwnedCreature,
   formatNumber,
+  getBaseIncomePerMinute,
   getCooldownLabel,
   getCreatureDefinition,
   getCreatureIncomePerMinute,
@@ -31,7 +36,10 @@ import {
   getFreeEggReadyAt,
   getIncomeBoostRemainingMs,
   getNextDailyReward,
+  getPrestigeEssenceGain,
+  getPrestigeUpgradeCost,
   getPreferredEggType,
+  getTierProgress,
   getTotalIncomePerMinute,
   getUpgradedIncomePreview,
   getUpgradeCost,
@@ -51,7 +59,7 @@ import {
   triggerHapticImpact,
   triggerHapticNotification,
 } from './telegram';
-import type { CreatureDefinition, EggType, GameState, OwnedCreature, ReferralMilestone, Screen } from './types';
+import type { CreatureDefinition, EggType, GameState, OwnedCreature, PrestigeUpgradeId, ReferralMilestone, Screen } from './types';
 import './styles.css';
 
 interface HatchResult {
@@ -72,9 +80,10 @@ function App() {
   const [sessionStart] = useState<SessionStart>(() => {
     const current = Date.now();
     const referralBonus = applyInviteeReferralBonus(loadGameState());
-    const streakState = registerLoginStreak(referralBonus.state, current);
+    const progressionState = applyTierProgression(referralBonus.state);
+    const streakState = registerLoginStreak(progressionState, current);
     const offline = applyOfflineEarnings(streakState, current);
-    return { state: offline.state, offlineCoins: offline.earnedCoins, inviteeBonusApplied: referralBonus.applied };
+    return { state: applyTierProgression(offline.state), offlineCoins: offline.earnedCoins, inviteeBonusApplied: referralBonus.applied };
   });
   const [gameState, setGameState] = useState<GameState>(sessionStart.state);
   const [activeScreen, setActiveScreen] = useState<Screen>('home');
@@ -203,7 +212,7 @@ function App() {
   const telegramShareUrl = getTelegramShareUrl(referralLink);
 
   const updateGameState = (updater: (state: GameState) => GameState) => {
-    setGameState((state) => updater(applyPassiveIncome(state, Date.now())));
+    setGameState((state) => applyTierProgression(updater(applyPassiveIncome(state, Date.now()))));
   };
 
   const hatchEgg = (eggType: EggType) => {
@@ -216,7 +225,12 @@ function App() {
     const firstEggBoostApplied = !gameState.firstEggBoostUsed && gameState.hatchesOpened === 0;
     const shouldShowInvitePopup =
       !gameState.invitePopupShown && gameState.hatchesOpened + 1 >= INVITE_POPUP_HATCH_THRESHOLD;
-    const definition = rollCreature(eggType, firstEggBoostApplied ? { minimumRarity: 'Rare' } : undefined);
+    const definition = rollCreature(
+      eggType,
+      firstEggBoostApplied
+        ? { minimumRarity: 'Rare', dropBonusLevel: gameState.prestigeUpgrades.dropChance }
+        : { maxTier: gameState.playerTier, dropBonusLevel: gameState.prestigeUpgrades.dropChance },
+    );
     const isDuplicate = gameState.creatures.some((creature) => creature.creatureId === definition.id);
     const creature = createOwnedCreature(definition);
 
@@ -450,6 +464,32 @@ function App() {
     }
   };
 
+  const buyPrestigeUpgrade = (upgradeId: PrestigeUpgradeId) => {
+    const cost = getPrestigeUpgradeCost(upgradeId, gameState.prestigeUpgrades[upgradeId]);
+    if (gameState.essence < cost) {
+      showErrorFeedback('Not enough Essence');
+      return;
+    }
+
+    updateGameState((state) => applyPrestigeUpgrade(state, upgradeId));
+    playSound('upgrade');
+    showFeedback('Permanent upgrade unlocked');
+  };
+
+  const prestigeReset = () => {
+    const gainedEssence = getPrestigeEssenceGain(gameState);
+    if (gainedEssence <= 0) {
+      showErrorFeedback('Earn more coins first');
+      return;
+    }
+
+    updateGameState((state) => applyPrestigeReset(state, Date.now()));
+    playSound('reward_claim');
+    triggerHapticNotification('success');
+    showFeedback(`Prestige reset: +${gainedEssence} Essence`);
+    setActiveScreen('home');
+  };
+
   return (
     <div className="app-shell">
       <main className="phone-frame">
@@ -497,6 +537,7 @@ function App() {
               onBuyPremium={buyPremiumEgg}
               onOpenDaily={() => setActiveScreen('daily')}
               onOpenReferral={() => setActiveScreen('referral')}
+              onOpenPrestige={() => setActiveScreen('prestige')}
             />
           )}
           {activeScreen === 'hatch' && (
@@ -552,6 +593,13 @@ function App() {
           {activeScreen === 'daily' && (
             <DailyScreen gameState={gameState} onClaim={claimDailyReward} />
           )}
+          {activeScreen === 'prestige' && (
+            <PrestigeScreen
+              gameState={gameState}
+              onBuyUpgrade={buyPrestigeUpgrade}
+              onReset={prestigeReset}
+            />
+          )}
         </section>
 
         <BottomNav activeScreen={activeScreen} onNavigate={setActiveScreen} />
@@ -578,13 +626,7 @@ function App() {
       )}
       {invitePopupOpen && (
         <InvitePopup
-          referralLink={referralLink}
-          onClose={() => setInvitePopupOpen(false)}
           onCopy={() => copyReferralLink(referralLink)}
-          onOpenReferral={() => {
-            setInvitePopupOpen(false);
-            setActiveScreen('referral');
-          }}
           onShare={() => shareReferralLink(telegramShareUrl)}
         />
       )}
@@ -665,49 +707,31 @@ const getReferralLink = (referralCode: string): string =>
   `https://t.me/EggFlipBot/app?start=${encodeURIComponent(referralCode)}`;
 
 const getTelegramShareUrl = (referralLink: string): string => {
-  const text = 'Join me in EggFlip. You get a welcome bonus and a boosted first hatch.';
-  return `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(text)}`;
+  const text = `🐣 Play EggFlip and get free rewards!\n${referralLink}`;
+  return `https://t.me/share/url?text=${encodeURIComponent(text)}`;
 };
 
 interface InvitePopupProps {
-  referralLink: string;
-  onClose: () => void;
   onCopy: () => void;
-  onOpenReferral: () => void;
   onShare: () => void;
 }
 
-function InvitePopup({ referralLink, onClose, onCopy, onOpenReferral, onShare }: InvitePopupProps) {
+function InvitePopup({ onCopy, onShare }: InvitePopupProps) {
   return (
     <div className="invite-popup-backdrop" role="dialog" aria-modal="true" aria-labelledby="invite-popup-title">
       <div className="invite-popup-modal">
-        <span className="invite-popup-emoji" aria-hidden="true">
-          🎁
-        </span>
-        <h2 id="invite-popup-title">Invite friends -&gt; get premium eggs</h2>
-        <p>
-          Friends get {ECONOMY.inviteeBonusPremiumEggs} Premium Egg and {ECONOMY.inviteeBonusGems} gems on first open.
-          You unlock bigger rewards as they join.
-        </p>
+        <h2 id="invite-popup-title">Invite friends 🎁</h2>
+        <p>Get free eggs</p>
         <div className="invite-benefits">
-          <span>1 friend: 2 premium eggs</span>
-          <span>3 friends: 200 gems</span>
-          <span>5 friends: x2 income 48h</span>
+          <span>1 friend → 2 eggs</span>
+          <span>3 friends → 200 gems</span>
+          <span>5 friends → x2 income</span>
         </div>
-        <div className="fake-link">{referralLink}</div>
-        <div className="share-actions">
-          <button onClick={onCopy} type="button">
-            Copy
-          </button>
-          <button onClick={onShare} type="button">
-            Telegram
-          </button>
-        </div>
-        <button className="primary-action invite-cta" onClick={onOpenReferral} type="button">
-          Open Invite Rewards
+        <button className="primary-action invite-popup-primary" onClick={onShare} type="button">
+          Invite
         </button>
-        <button className="secondary-action compact-action" onClick={onClose} type="button">
-          Maybe later
+        <button className="secondary-action invite-popup-secondary" onClick={onCopy} type="button">
+          Copy link
         </button>
       </div>
     </div>
@@ -746,7 +770,10 @@ const applyProductEffect = (state: GameState, productId: ProductId, now: number)
     case PRODUCT_IDS.extraCreatureSlot:
       return {
         ...state,
-        maxCreatureSlots: state.maxCreatureSlots + 1,
+        eggs: {
+          ...state.eggs,
+          basic: state.eggs.basic + 5,
+        },
       };
     case PRODUCT_IDS.starterPack: {
       const starterState: GameState = {
@@ -842,6 +869,7 @@ interface HomeScreenProps {
   onBuyPremium: () => void;
   onOpenDaily: () => void;
   onOpenReferral: () => void;
+  onOpenPrestige: () => void;
 }
 
 function HomeScreen({
@@ -855,12 +883,20 @@ function HomeScreen({
   onBuyPremium,
   onOpenDaily,
   onOpenReferral,
+  onOpenPrestige,
 }: HomeScreenProps) {
   const totalEggs = getEggCount(gameState);
   const freeReadyAt = getFreeEggReadyAt(gameState);
   const freeReady = now >= freeReadyAt;
   const freeCooldown = getCooldownLabel(freeReadyAt - now);
   const boostRemainingMs = getIncomeBoostRemainingMs(gameState, now);
+  const tierProgress = getTierProgress(gameState);
+  const baseIncome = getBaseIncomePerMinute(gameState);
+  const progressionGoals = [
+    { label: 'Reach Tier 2', complete: gameState.playerTier >= 2 },
+    { label: 'Reach 100 income/min', complete: baseIncome >= 100 },
+    { label: 'Unlock Epic creatures', complete: gameState.playerTier >= 3 },
+  ];
 
   return (
     <div className="screen-content home-screen">
@@ -877,6 +913,26 @@ function HomeScreen({
         </button>
       </div>
 
+      <div className="tier-progress-card">
+        <div className="tier-progress-header">
+          <div>
+            <span>Current Tier</span>
+            <strong>Tier {tierProgress.currentTier}: {tierProgress.currentLabel}</strong>
+          </div>
+          <div>
+            <span>Max Drop</span>
+            <strong>{tierProgress.maxRarity}</strong>
+          </div>
+        </div>
+        <div className="progress-track tier-track" aria-label="Tier progress">
+          <span style={{ width: `${tierProgress.progressPercent}%` }} />
+        </div>
+        <div className="tier-progress-footer">
+          <span>{tierProgress.goalLabel}</span>
+          <strong>{tierProgress.progressLabel}</strong>
+        </div>
+      </div>
+
       <div className="home-metrics">
         <div className="income-card premium-card">
           <span>Coins per minute</span>
@@ -886,6 +942,15 @@ function HomeScreen({
           <span>Premium eggs</span>
           <strong>{gameState.premiumEggs}</strong>
         </div>
+      </div>
+
+      <div className="goal-strip" aria-label="Progression goals">
+        {progressionGoals.map((goal) => (
+          <div className={goal.complete ? 'goal-chip complete' : 'goal-chip'} key={goal.label}>
+            <span>{goal.complete ? 'Done' : 'Goal'}</span>
+            <strong>{goal.label}</strong>
+          </div>
+        ))}
       </div>
 
       {!gameState.firstEggBoostUsed && (
@@ -931,6 +996,10 @@ function HomeScreen({
         <button className="quick-button invite" onClick={onOpenReferral} type="button">
           <span>🎁 Invite</span>
           <strong>Bonus</strong>
+        </button>
+        <button className="quick-button essence" onClick={onOpenPrestige} type="button">
+          <span>Essence</span>
+          <strong>{gameState.essence} owned</strong>
         </button>
       </div>
 
@@ -988,7 +1057,7 @@ function HatchScreen({ gameState, hatchResult, isHatching, onHatch, onCollection
       ) : (
         <div className="result-empty">
           <h2>{isHatching ? 'Cracking...' : 'Choose an egg'}</h2>
-          <p>{isHatching ? 'A new creature is waking up.' : 'Free and basic eggs use the normal rarity odds.'}</p>
+          <p>{isHatching ? 'A new creature is waking up.' : `Drops are capped at Tier ${gameState.playerTier}, except your first boost.`}</p>
         </div>
       )}
 
@@ -1198,7 +1267,7 @@ function ShopScreen({
         variant="coin"
         icon="🥚"
         title="Basic Egg"
-        subtitle="Normal rarity odds"
+        subtitle={`Normal odds up to Tier ${gameState.playerTier}`}
         action={`${ECONOMY.basicEggCoinCost} coins`}
         onClick={onBuyBasic}
       />
@@ -1206,7 +1275,7 @@ function ShopScreen({
         variant="gem"
         icon="✨"
         title="Premium Egg"
-        subtitle="Better Epic, Legendary, and Mythic odds"
+        subtitle="Better odds, still tier-capped"
         action={`${ECONOMY.premiumEggGemCost} gems`}
         onClick={onBuyPremium}
       />
@@ -1404,6 +1473,71 @@ function ReferralScreen({
 interface DailyScreenProps {
   gameState: GameState;
   onClaim: () => void;
+}
+
+interface PrestigeScreenProps {
+  gameState: GameState;
+  onBuyUpgrade: (upgradeId: PrestigeUpgradeId) => void;
+  onReset: () => void;
+}
+
+function PrestigeScreen({ gameState, onBuyUpgrade, onReset }: PrestigeScreenProps) {
+  const essenceGain = getPrestigeEssenceGain(gameState);
+
+  return (
+    <div className="screen-content prestige-screen">
+      <div className="prestige-hero">
+        <span className="prestige-icon" aria-hidden="true">✦</span>
+        <div>
+          <span>Essence</span>
+          <strong>{formatNumber(gameState.essence)}</strong>
+        </div>
+        <div>
+          <span>On reset</span>
+          <strong>+{formatNumber(essenceGain)}</strong>
+        </div>
+      </div>
+
+      <div className="prestige-reset-card">
+        <div>
+          <h2>Prestige Reset</h2>
+          <p>Reset coins, creatures, and upgrades. Keep Essence and permanent upgrades.</p>
+        </div>
+        <button className="primary-action prestige-reset-button" disabled={essenceGain <= 0} onClick={onReset} type="button">
+          Reset for {formatNumber(essenceGain)} Essence
+        </button>
+        <small>{formatNumber(gameState.totalCoinsEarned)} total coins earned this run</small>
+      </div>
+
+      <div className="section-heading">
+        <h2>Essence Shop</h2>
+        <span>{gameState.prestigeCount} resets</span>
+      </div>
+
+      <div className="prestige-upgrade-list">
+        {PRESTIGE_UPGRADES.map((upgrade) => {
+          const level = gameState.prestigeUpgrades[upgrade.id];
+          const cost = getPrestigeUpgradeCost(upgrade.id, level);
+          const maxed = upgrade.maxLevel !== undefined && level >= upgrade.maxLevel;
+          const canBuy = !maxed && gameState.essence >= cost;
+
+          return (
+            <div className="prestige-upgrade-card" key={upgrade.id}>
+              <span className="prestige-upgrade-icon" aria-hidden="true">{upgrade.icon}</span>
+              <div>
+                <strong>{upgrade.title}</strong>
+                <span>{upgrade.description}</span>
+                <small>Level {level}{upgrade.maxLevel ? `/${upgrade.maxLevel}` : ''}</small>
+              </div>
+              <button disabled={!canBuy} onClick={() => onBuyUpgrade(upgrade.id)} type="button">
+                {maxed ? 'Max' : `${cost} ✦`}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function DailyScreen({ gameState, onClaim }: DailyScreenProps) {

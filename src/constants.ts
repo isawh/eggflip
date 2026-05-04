@@ -1,4 +1,4 @@
-import type { CreatureDefinition, DailyReward, EggType, Rarity, ReferralMilestone } from './types';
+import type { CreatureDefinition, DailyReward, EggType, PrestigeUpgradeId, Rarity, ReferralMilestone, Tier } from './types';
 
 export const GAME_TITLE = 'EggFlip';
 
@@ -6,7 +6,8 @@ export const STARTING_COINS = 0;
 export const STARTING_GEMS = 20;
 export const STARTING_FREE_EGGS = 1;
 export const STARTING_PREMIUM_EGGS = 0;
-export const STARTING_MAX_CREATURE_SLOTS = 5;
+export const STARTING_TIER: Tier = 1;
+export const STARTING_MAX_CREATURE_SLOTS = 3;
 export const EGG_IMAGE_PATH = '/assets/creatures/egg.png';
 
 export const MILLISECONDS_PER_MINUTE = 60_000;
@@ -29,7 +30,12 @@ export const ECONOMY = {
   starterPackGems: 100,
   starterPackPremiumEggs: 3,
   upgradeBaseCost: 80,
-  upgradeLevelExponent: 1.45,
+  upgradeLevelExponent: 1.6,
+  prestigeEssenceDivisor: 10_000,
+  prestigeIncomeBonusPerLevel: 0.1,
+  prestigeCooldownReductionPerLevel: 0.05,
+  prestigeMaxCooldownReduction: 0.5,
+  prestigeDropBonusPerLevel: 0.12,
   rarityIncomeMultipliers: {
     Common: 1,
     Rare: 2,
@@ -39,6 +45,50 @@ export const ECONOMY = {
   } satisfies Record<Rarity, number>,
 };
 
+export const PRESTIGE_UPGRADES: Array<{
+  id: PrestigeUpgradeId;
+  title: string;
+  description: string;
+  icon: string;
+  baseCost: number;
+  costIncrease: number;
+  maxLevel?: number;
+}> = [
+  {
+    id: 'income',
+    title: 'Essence Income',
+    description: '+10% income per level',
+    icon: '⚡',
+    baseCost: 1,
+    costIncrease: 1,
+  },
+  {
+    id: 'slot',
+    title: 'Creature Slot',
+    description: '+1 active creature slot',
+    icon: '📦',
+    baseCost: 3,
+    costIncrease: 3,
+  },
+  {
+    id: 'cooldown',
+    title: 'Warm Nest',
+    description: 'Free eggs cool down faster',
+    icon: '⏱️',
+    baseCost: 2,
+    costIncrease: 2,
+    maxLevel: 10,
+  },
+  {
+    id: 'dropChance',
+    title: 'Lucky Shell',
+    description: 'Better odds inside unlocked tiers',
+    icon: '✨',
+    baseCost: 2,
+    costIncrease: 2,
+  },
+];
+
 export const EGG_LABELS: Record<EggType, string> = {
   free: 'Free Egg',
   basic: 'Basic Egg',
@@ -46,6 +96,62 @@ export const EGG_LABELS: Record<EggType, string> = {
 };
 
 export const RARITY_ORDER: Rarity[] = ['Common', 'Rare', 'Epic', 'Legendary', 'Mythic'];
+
+export const TIER_DEFINITIONS: Array<{
+  tier: Tier;
+  label: string;
+  maxRarity: Rarity;
+  activeSlots: number;
+  incomeRequired: number;
+  upgradesRequired: number;
+  goalLabel: string;
+}> = [
+  {
+    tier: 1,
+    label: 'Basic',
+    maxRarity: 'Common',
+    activeSlots: 3,
+    incomeRequired: 0,
+    upgradesRequired: 0,
+    goalLabel: 'Start collecting',
+  },
+  {
+    tier: 2,
+    label: 'Rare',
+    maxRarity: 'Rare',
+    activeSlots: 3,
+    incomeRequired: 35,
+    upgradesRequired: 2,
+    goalLabel: 'Reach Tier 2',
+  },
+  {
+    tier: 3,
+    label: 'Epic',
+    maxRarity: 'Epic',
+    activeSlots: 4,
+    incomeRequired: 100,
+    upgradesRequired: 6,
+    goalLabel: 'Reach 100 income/min',
+  },
+  {
+    tier: 4,
+    label: 'Legendary',
+    maxRarity: 'Legendary',
+    activeSlots: 4,
+    incomeRequired: 360,
+    upgradesRequired: 14,
+    goalLabel: 'Unlock Legendary creatures',
+  },
+  {
+    tier: 5,
+    label: 'Mythic',
+    maxRarity: 'Mythic',
+    activeSlots: 5,
+    incomeRequired: 900,
+    upgradesRequired: 28,
+    goalLabel: 'Unlock Mythic creatures',
+  },
+];
 
 export const RARITY_META: Record<Rarity, { color: string; badge: string; glow: string }> = {
   Common: { color: '#58b368', badge: '#c9f7be', glow: 'rgba(88, 179, 104, 0.28)' },
@@ -78,7 +184,7 @@ export const CREATURES: CreatureDefinition[] = [
     rarity: 'Common',
     emoji: '🦫',
     imagePath: '/assets/creatures/common-capybara.png',
-    baseIncomePerMinute: 12,
+    baseIncomePerMinute: 8,
     accent: '#78d982',
   },
   {
@@ -87,7 +193,7 @@ export const CREATURES: CreatureDefinition[] = [
     rarity: 'Rare',
     emoji: '🦆',
     imagePath: '/assets/creatures/rare-duck.png',
-    baseIncomePerMinute: 30,
+    baseIncomePerMinute: 18,
     accent: '#57b7ff',
   },
   {
@@ -96,7 +202,7 @@ export const CREATURES: CreatureDefinition[] = [
     rarity: 'Epic',
     emoji: '🐉',
     imagePath: '/assets/creatures/epic-dragon.png',
-    baseIncomePerMinute: 72,
+    baseIncomePerMinute: 36,
     accent: '#b47cff',
   },
   {
@@ -105,7 +211,7 @@ export const CREATURES: CreatureDefinition[] = [
     rarity: 'Legendary',
     emoji: '🦅',
     imagePath: '/assets/creatures/legendary-griffin.png',
-    baseIncomePerMinute: 170,
+    baseIncomePerMinute: 70,
     accent: '#ffb23f',
   },
   {
@@ -114,7 +220,7 @@ export const CREATURES: CreatureDefinition[] = [
     rarity: 'Mythic',
     emoji: '🌌',
     imagePath: '/assets/creatures/mythic-cosmic.png',
-    baseIncomePerMinute: 460,
+    baseIncomePerMinute: 140,
     accent: '#ff66a7',
   },
 ];

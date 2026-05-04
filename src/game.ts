@@ -6,16 +6,45 @@ import {
   MAX_OFFLINE_EARNINGS_MS,
   MILLISECONDS_PER_MINUTE,
   NORMAL_EGG_RARITY_CHANCES,
+  PRESTIGE_UPGRADES,
   PREMIUM_EGG_RARITY_CHANCES,
   RARITY_ORDER,
+  STARTING_COINS,
+  STARTING_FREE_EGGS,
+  STARTING_TIER,
   STREAK_RESET_MS,
+  TIER_DEFINITIONS,
 } from './constants';
-import type { CreatureDefinition, DailyReward, EggType, GameState, OwnedCreature, Rarity } from './types';
+import type { CreatureDefinition, DailyReward, EggType, GameState, OwnedCreature, PrestigeUpgradeId, Rarity, Tier } from './types';
 
 const fallbackCreature = CREATURES[0];
 
 export const getCreatureDefinition = (creatureId: string): CreatureDefinition =>
   CREATURES.find((creature) => creature.id === creatureId) ?? fallbackCreature;
+
+export const getRarityTier = (rarity: Rarity): Tier =>
+  (RARITY_ORDER.indexOf(rarity) + 1) as Tier;
+
+export const getTierDefinition = (tier: Tier) =>
+  TIER_DEFINITIONS.find((definition) => definition.tier === tier) ?? TIER_DEFINITIONS[0];
+
+export const getMaxActiveSlotsForTier = (tier: Tier): number =>
+  getTierDefinition(tier).activeSlots;
+
+export const getPrestigeIncomeMultiplier = (state: GameState): number =>
+  1 + state.prestigeUpgrades.income * ECONOMY.prestigeIncomeBonusPerLevel;
+
+export const getPrestigeSlotBonus = (state: GameState): number =>
+  state.prestigeUpgrades.slot;
+
+export const getPrestigeCooldownReduction = (state: GameState): number =>
+  Math.min(
+    ECONOMY.prestigeMaxCooldownReduction,
+    state.prestigeUpgrades.cooldown * ECONOMY.prestigeCooldownReductionPerLevel,
+  );
+
+export const getFreeEggCooldownMs = (state: GameState): number =>
+  Math.round(FREE_EGG_COOLDOWN_MS * (1 - getPrestigeCooldownReduction(state)));
 
 export const getCreatureIncomePerMinute = (creature: OwnedCreature): number => {
   const definition = getCreatureDefinition(creature.creatureId);
@@ -27,7 +56,10 @@ export const getActiveCreatures = (state: GameState): OwnedCreature[] =>
   state.creatures.slice(0, state.maxCreatureSlots);
 
 export const getBaseIncomePerMinute = (state: GameState): number =>
-  getActiveCreatures(state).reduce((total, creature) => total + getCreatureIncomePerMinute(creature), 0);
+  Math.round(
+    getActiveCreatures(state).reduce((total, creature) => total + getCreatureIncomePerMinute(creature), 0) *
+      getPrestigeIncomeMultiplier(state),
+  );
 
 export const isIncomeBoostActive = (state: GameState, now = Date.now()): boolean =>
   Boolean(state.incomeBoostUntil && state.incomeBoostUntil > now);
@@ -78,13 +110,29 @@ const rollRarity = (chances: Array<{ rarity: Rarity; chance: number }>): Rarity 
 
 interface RollCreatureOptions {
   minimumRarity?: Rarity;
+  maxTier?: Tier;
+  dropBonusLevel?: number;
 }
 
 export const rollCreature = (eggType: EggType, options: RollCreatureOptions = {}): CreatureDefinition => {
   const baseChances = eggType === 'premium' ? PREMIUM_EGG_RARITY_CHANCES : NORMAL_EGG_RARITY_CHANCES;
-  const chances = options.minimumRarity
-    ? baseChances.filter((item) => RARITY_ORDER.indexOf(item.rarity) >= RARITY_ORDER.indexOf(options.minimumRarity as Rarity))
-    : baseChances;
+  const filteredChances = baseChances.filter((item) => {
+    const rarityTier = getRarityTier(item.rarity);
+    const aboveMinimum = options.minimumRarity ? rarityTier >= getRarityTier(options.minimumRarity) : true;
+    const withinTierCap = options.maxTier ? rarityTier <= options.maxTier : true;
+    return aboveMinimum && withinTierCap;
+  });
+  const chances = (filteredChances.length > 0 ? filteredChances : baseChances).map((item) => {
+    const rarityTier = getRarityTier(item.rarity);
+    const bonusMultiplier = rarityTier > 1
+      ? 1 + (options.dropBonusLevel ?? 0) * ECONOMY.prestigeDropBonusPerLevel * (rarityTier - 1)
+      : Math.max(0.25, 1 - (options.dropBonusLevel ?? 0) * 0.03);
+
+    return {
+      ...item,
+      chance: item.chance * bonusMultiplier,
+    };
+  });
   const rarity = rollRarity(chances);
   const pool = CREATURES.filter((creature) => creature.rarity === rarity);
   return pool[Math.floor(Math.random() * pool.length)] ?? fallbackCreature;
@@ -120,6 +168,7 @@ export const applyPassiveIncome = (state: GameState, now = Date.now()): GameStat
   return {
     ...state,
     coins: state.coins + earnedCoins,
+    totalCoinsEarned: state.totalCoinsEarned + earnedCoins,
     lastIncomeAt: now,
     lastActiveAt: now,
   };
@@ -151,6 +200,7 @@ export const applyOfflineEarnings = (
     state: {
       ...state,
       coins: state.coins + earnedCoins,
+      totalCoinsEarned: state.totalCoinsEarned + earnedCoins,
       lastActiveAt: now,
       lastIncomeAt: now,
     },
@@ -188,7 +238,7 @@ export const applyDailyReward = (state: GameState, reward: DailyReward, date = n
   };
 
   if (reward.type === 'coins') {
-    return { ...next, coins: next.coins + reward.amount };
+    return { ...next, coins: next.coins + reward.amount, totalCoinsEarned: next.totalCoinsEarned + reward.amount };
   }
 
   if (reward.type === 'gems') {
@@ -218,7 +268,7 @@ export const applyDailyReward = (state: GameState, reward: DailyReward, date = n
 };
 
 export const getFreeEggReadyAt = (state: GameState): number =>
-  state.lastFreeEggAt + FREE_EGG_COOLDOWN_MS;
+  state.lastFreeEggAt + getFreeEggCooldownMs(state);
 
 export const registerLoginStreak = (state: GameState, now = Date.now()): GameState => {
   const lastLoginAt = state.dailyRewards.lastLoginAt;
@@ -265,6 +315,163 @@ export const registerLoginStreak = (state: GameState, now = Date.now()): GameSta
       lastLoginAt: now,
     },
   };
+};
+
+export interface TierProgress {
+  currentTier: Tier;
+  currentLabel: string;
+  maxRarity: Rarity;
+  activeSlots: number;
+  nextTier: Tier | null;
+  nextLabel: string | null;
+  goalLabel: string;
+  progressLabel: string;
+  progressPercent: number;
+}
+
+export const getTotalUpgradeCount = (state: GameState): number =>
+  state.creatures.reduce((total, creature) => total + Math.max(0, creature.level - 1), 0);
+
+export const getProgressionTier = (state: GameState): Tier => {
+  const baseIncome = getBaseIncomePerMinute(state);
+  const upgrades = getTotalUpgradeCount(state);
+
+  return TIER_DEFINITIONS.reduce<Tier>((highestTier, definition) => {
+    const unlockedByIncome = baseIncome >= definition.incomeRequired;
+    const unlockedByUpgrades = upgrades >= definition.upgradesRequired;
+    return unlockedByIncome || unlockedByUpgrades ? definition.tier : highestTier;
+  }, 1);
+};
+
+export const applyTierProgression = (state: GameState): GameState => {
+  let playerTier = state.playerTier;
+  let maxCreatureSlots = getMaxActiveSlotsForTier(playerTier) + getPrestigeSlotBonus(state);
+  let nextState: GameState = { ...state, playerTier, maxCreatureSlots };
+
+  for (let pass = 0; pass < TIER_DEFINITIONS.length; pass += 1) {
+    const nextTier = Math.max(playerTier, getProgressionTier(nextState)) as Tier;
+    if (nextTier === playerTier) {
+      break;
+    }
+
+    playerTier = nextTier;
+    maxCreatureSlots = getMaxActiveSlotsForTier(playerTier) + getPrestigeSlotBonus(nextState);
+    nextState = { ...nextState, playerTier, maxCreatureSlots };
+  }
+
+  return {
+    ...nextState,
+    playerTier,
+    maxCreatureSlots,
+  };
+};
+
+export const getTierProgress = (state: GameState): TierProgress => {
+  const currentTier = state.playerTier;
+  const currentDefinition = getTierDefinition(currentTier);
+  const nextDefinition = TIER_DEFINITIONS.find((definition) => definition.tier === currentTier + 1);
+
+  if (!nextDefinition) {
+    return {
+      currentTier,
+      currentLabel: currentDefinition.label,
+      maxRarity: currentDefinition.maxRarity,
+      activeSlots: state.maxCreatureSlots,
+      nextTier: null,
+      nextLabel: null,
+      goalLabel: 'All tiers unlocked',
+      progressLabel: 'Mythic creatures available',
+      progressPercent: 100,
+    };
+  }
+
+  const baseIncome = getBaseIncomePerMinute(state);
+  const upgrades = getTotalUpgradeCount(state);
+  const incomePercent = nextDefinition.incomeRequired > 0 ? baseIncome / nextDefinition.incomeRequired : 1;
+  const upgradePercent = nextDefinition.upgradesRequired > 0 ? upgrades / nextDefinition.upgradesRequired : 1;
+  const useIncomeProgress = incomePercent >= upgradePercent;
+
+  return {
+    currentTier,
+    currentLabel: currentDefinition.label,
+    maxRarity: currentDefinition.maxRarity,
+    activeSlots: state.maxCreatureSlots,
+    nextTier: nextDefinition.tier,
+    nextLabel: nextDefinition.label,
+    goalLabel: nextDefinition.goalLabel,
+    progressLabel: useIncomeProgress
+      ? `${formatNumber(baseIncome)}/${formatNumber(nextDefinition.incomeRequired)} income/min`
+      : `${upgrades}/${nextDefinition.upgradesRequired} upgrades`,
+    progressPercent: Math.min(100, Math.max(0, Math.max(incomePercent, upgradePercent) * 100)),
+  };
+};
+
+export const getPrestigeEssenceGain = (state: GameState): number =>
+  Math.floor(Math.sqrt(state.totalCoinsEarned / ECONOMY.prestigeEssenceDivisor));
+
+export const getPrestigeUpgradeCost = (upgradeId: PrestigeUpgradeId, currentLevel: number): number => {
+  const definition = PRESTIGE_UPGRADES.find((upgrade) => upgrade.id === upgradeId);
+  if (!definition) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  return definition.baseCost + currentLevel * definition.costIncrease;
+};
+
+export const canBuyPrestigeUpgrade = (state: GameState, upgradeId: PrestigeUpgradeId): boolean => {
+  const definition = PRESTIGE_UPGRADES.find((upgrade) => upgrade.id === upgradeId);
+  const currentLevel = state.prestigeUpgrades[upgradeId];
+
+  if (!definition || (definition.maxLevel !== undefined && currentLevel >= definition.maxLevel)) {
+    return false;
+  }
+
+  return state.essence >= getPrestigeUpgradeCost(upgradeId, currentLevel);
+};
+
+export const applyPrestigeUpgrade = (state: GameState, upgradeId: PrestigeUpgradeId): GameState => {
+  const currentLevel = state.prestigeUpgrades[upgradeId];
+  const cost = getPrestigeUpgradeCost(upgradeId, currentLevel);
+
+  if (!canBuyPrestigeUpgrade(state, upgradeId)) {
+    return state;
+  }
+
+  return applyTierProgression({
+    ...state,
+    essence: state.essence - cost,
+    prestigeUpgrades: {
+      ...state.prestigeUpgrades,
+      [upgradeId]: currentLevel + 1,
+    },
+  });
+};
+
+export const applyPrestigeReset = (state: GameState, now = Date.now()): GameState => {
+  const gainedEssence = getPrestigeEssenceGain(state);
+  const premiumEggs = state.premiumEggs;
+
+  return applyTierProgression({
+    ...state,
+    coins: STARTING_COINS,
+    essence: state.essence + gainedEssence,
+    totalCoinsEarned: 0,
+    prestigeCount: state.prestigeCount + 1,
+    premiumEggs,
+    eggs: {
+      free: STARTING_FREE_EGGS,
+      basic: 0,
+      premium: premiumEggs,
+    },
+    creatures: [],
+    selectedCreatureUid: null,
+    lastIncomeAt: now,
+    lastActiveAt: now,
+    lastFreeEggAt: now,
+    playerTier: STARTING_TIER,
+    maxCreatureSlots: getMaxActiveSlotsForTier(STARTING_TIER) + getPrestigeSlotBonus(state),
+    hatchesOpened: 0,
+  });
 };
 
 export const getCooldownLabel = (ms: number): string => {

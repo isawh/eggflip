@@ -5,8 +5,10 @@ import {
   STARTING_GEMS,
   STARTING_MAX_CREATURE_SLOTS,
   STARTING_PREMIUM_EGGS,
+  STARTING_TIER,
+  TIER_DEFINITIONS,
 } from './constants';
-import type { DailyRewardState, EggType, GameState, ReferralMilestoneId } from './types';
+import type { DailyRewardState, EggType, GameState, PrestigeUpgrades, ReferralMilestoneId, Tier } from './types';
 
 const STORAGE_KEY = 'eggflip-game-state-v1';
 
@@ -16,9 +18,20 @@ const defaultEggs = (): Record<EggType, number> => ({
   premium: 0,
 });
 
+const defaultPrestigeUpgrades = (): PrestigeUpgrades => ({
+  income: 0,
+  slot: 0,
+  cooldown: 0,
+  dropChance: 0,
+});
+
 export const createInitialGameState = (now = Date.now()): GameState => ({
   coins: STARTING_COINS,
   gems: STARTING_GEMS,
+  essence: 0,
+  totalCoinsEarned: 0,
+  prestigeCount: 0,
+  prestigeUpgrades: defaultPrestigeUpgrades(),
   premiumEggs: STARTING_PREMIUM_EGGS,
   eggs: defaultEggs(),
   creatures: [],
@@ -27,6 +40,7 @@ export const createInitialGameState = (now = Date.now()): GameState => ({
   lastActiveAt: now,
   lastFreeEggAt: now,
   incomeBoostUntil: null,
+  playerTier: STARTING_TIER,
   maxCreatureSlots: STARTING_MAX_CREATURE_SLOTS,
   referralCode: createReferralCode(),
   referredByCode: null,
@@ -71,6 +85,8 @@ export const loadGameState = (): GameState => {
     const lastActiveAt = asTimestamp(saved.lastActiveAt, lastIncomeAt);
     const premiumEggs = asCount(saved.premiumEggs, asCount(savedEggs.premium, base.premiumEggs));
     const hatchesOpened = asCount(saved.hatchesOpened, savedCreatures.length);
+    const playerTier = asTier(saved.playerTier, base.playerTier);
+    const prestigeUpgrades = asPrestigeUpgrades(saved.prestigeUpgrades);
     const validMilestoneIds = new Set(REFERRAL_MILESTONES.map((milestone) => milestone.id));
     const claimedReferralMilestones = Array.isArray(saved.claimedReferralMilestones)
       ? saved.claimedReferralMilestones.filter((id): id is ReferralMilestoneId => validMilestoneIds.has(id as ReferralMilestoneId))
@@ -81,6 +97,10 @@ export const loadGameState = (): GameState => {
       ...saved,
       coins: asCount(saved.coins, base.coins),
       gems: asCount(saved.gems, base.gems),
+      essence: asCount(saved.essence, base.essence),
+      totalCoinsEarned: asCount(saved.totalCoinsEarned, asCount(saved.coins, base.totalCoinsEarned)),
+      prestigeCount: asCount(saved.prestigeCount, base.prestigeCount),
+      prestigeUpgrades,
       premiumEggs,
       eggs: {
         free: asCount(savedEggs.free, base.eggs.free),
@@ -92,7 +112,8 @@ export const loadGameState = (): GameState => {
       lastActiveAt,
       lastFreeEggAt: asTimestamp(saved.lastFreeEggAt, base.lastFreeEggAt),
       incomeBoostUntil: asNullableTimestamp(saved.incomeBoostUntil),
-      maxCreatureSlots: Math.max(1, asCount(saved.maxCreatureSlots, base.maxCreatureSlots)),
+      playerTier,
+      maxCreatureSlots: getSavedSlotCap(playerTier, saved.maxCreatureSlots, prestigeUpgrades.slot),
       referralCode: normalizeReferralCode(saved.referralCode, base.referralCode),
       referredByCode: normalizeNullableReferralCode(saved.referredByCode),
       invitedFriendsCount: asCount(saved.invitedFriendsCount, base.invitedFriendsCount),
@@ -136,6 +157,30 @@ const asNullableTimestamp = (value: unknown): number | null =>
 
 const asBoolean = (value: unknown, fallback: boolean): boolean =>
   typeof value === 'boolean' ? value : fallback;
+
+const asTier = (value: unknown, fallback: Tier): Tier => {
+  const tier = typeof value === 'number' && Number.isFinite(value) ? Math.floor(value) : fallback;
+  return TIER_DEFINITIONS.some((definition) => definition.tier === tier) ? (tier as Tier) : fallback;
+};
+
+const asPrestigeUpgrades = (value: unknown): PrestigeUpgrades => {
+  const saved = typeof value === 'object' && value !== null ? value as Partial<Record<keyof PrestigeUpgrades, unknown>> : {};
+  const base = defaultPrestigeUpgrades();
+
+  return {
+    income: asCount(saved.income, base.income),
+    slot: asCount(saved.slot, base.slot),
+    cooldown: asCount(saved.cooldown, base.cooldown),
+    dropChance: asCount(saved.dropChance, base.dropChance),
+  };
+};
+
+const getSavedSlotCap = (tier: Tier, savedSlots: unknown, prestigeSlotBonus: number): number => {
+  const tierSlots = TIER_DEFINITIONS.find((definition) => definition.tier === tier)?.activeSlots ?? STARTING_MAX_CREATURE_SLOTS;
+  const maximumSlots = tierSlots + prestigeSlotBonus;
+  const legacySlots = asCount(savedSlots, maximumSlots);
+  return Math.min(Math.max(STARTING_MAX_CREATURE_SLOTS + prestigeSlotBonus, legacySlots), maximumSlots);
+};
 
 const clampStreakDay = (day: number): number => Math.min(7, Math.max(1, Math.floor(day)));
 

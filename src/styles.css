@@ -328,6 +328,92 @@ h2 {
   gap: 8px;
 }
 
+.tier-progress-card {
+  min-height: 116px;
+  padding: 13px;
+  display: grid;
+  gap: 10px;
+  border: 3px solid #13223d;
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.12)),
+    linear-gradient(145deg, #fff7ad, #95e7ff);
+  box-shadow: 0 5px 0 #13223d, inset 0 2px 0 rgba(255, 255, 255, 0.72);
+}
+
+.tier-progress-header,
+.tier-progress-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tier-progress-header div {
+  min-width: 0;
+}
+
+.tier-progress-header span,
+.tier-progress-footer span {
+  display: block;
+  color: #607083;
+  font-size: 11px;
+  font-weight: 1000;
+}
+
+.tier-progress-header strong,
+.tier-progress-footer strong {
+  display: block;
+  margin-top: 3px;
+  color: #13223d;
+  font-size: 15px;
+  line-height: 1.08;
+}
+
+.tier-progress-header div:last-child {
+  text-align: right;
+}
+
+.tier-track {
+  height: 20px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.goal-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.goal-chip {
+  min-height: 68px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  border: 2px solid #13223d;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #ffffff, #eef9ff);
+  box-shadow: 0 4px 0 #13223d;
+}
+
+.goal-chip.complete {
+  background: linear-gradient(180deg, #dbffdf, #83eb9c);
+}
+
+.goal-chip span {
+  color: #607083;
+  font-size: 10px;
+  font-weight: 1000;
+}
+
+.goal-chip strong {
+  color: #13223d;
+  font-size: 12px;
+  line-height: 1.08;
+}
+
 .status-card,
 .income-card,
 .streak-card,
@@ -523,6 +609,10 @@ h2 {
   background: linear-gradient(145deg, #e7d3ff, #ab7cff);
 }
 
+.quick-button.essence {
+  background: linear-gradient(145deg, #f6e6ff, #80dcff);
+}
+
 .primary-action,
 .secondary-action {
   min-height: 54px;
@@ -560,6 +650,7 @@ h2 {
 .egg-button:active,
 .shop-item button:active,
 .paid-product-card button:active,
+.prestige-upgrade-card button:active,
 .share-actions button:active,
 .milestone-card button:active,
 .nav-item:active,
@@ -806,6 +897,10 @@ button:disabled {
   transform: translateY(-2px);
 }
 
+.creature-card.stored {
+  filter: saturate(0.82);
+}
+
 .duplicate-badge {
   position: absolute;
   top: 8px;
@@ -829,6 +924,19 @@ button:disabled {
   border-radius: 999px;
   background: #91ffb8;
   color: #13223d;
+  font-size: 10px;
+  font-weight: 1000;
+}
+
+.stored-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 4px 7px;
+  border: 2px solid #13223d;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #55667b;
   font-size: 10px;
   font-weight: 1000;
 }
@@ -1335,6 +1443,11 @@ button:disabled {
   transition: width 260ms ease;
 }
 
+.progress-track.tier-track {
+  height: 20px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
 .share-panel {
   padding: 13px;
   display: grid;
@@ -1507,6 +1620,143 @@ button:disabled {
   line-height: 1.1;
 }
 
+.prestige-screen {
+  overflow-y: auto;
+}
+
+.prestige-hero,
+.prestige-reset-card,
+.prestige-upgrade-card {
+  border: 3px solid #13223d;
+  border-radius: 8px;
+  box-shadow: 0 5px 0 #13223d, inset 0 2px 0 rgba(255, 255, 255, 0.72);
+}
+
+.prestige-hero {
+  min-height: 108px;
+  padding: 14px;
+  display: grid;
+  grid-template-columns: 58px repeat(2, minmax(0, 1fr));
+  align-items: center;
+  gap: 10px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.08)),
+    linear-gradient(145deg, #f8dcff, #75dfff);
+}
+
+.prestige-icon {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  border: 2px solid rgba(19, 34, 61, 0.2);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.72);
+  color: #7d43d8;
+  font-size: 34px;
+  font-weight: 1000;
+}
+
+.prestige-hero span,
+.prestige-reset-card small,
+.prestige-upgrade-card span,
+.prestige-upgrade-card small {
+  color: #607083;
+  font-size: 12px;
+  font-weight: 1000;
+}
+
+.prestige-hero strong {
+  display: block;
+  margin-top: 4px;
+  color: #13223d;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.prestige-reset-card {
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+  background: linear-gradient(180deg, #ffffff, #eef9ff);
+}
+
+.prestige-reset-card p {
+  margin-top: 6px;
+  color: #55667b;
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1.35;
+}
+
+.prestige-reset-button {
+  width: 100%;
+}
+
+.prestige-upgrade-list {
+  display: grid;
+  gap: 10px;
+}
+
+.prestige-upgrade-card {
+  min-height: 96px;
+  padding: 11px;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 74px;
+  align-items: center;
+  gap: 10px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.2)),
+    linear-gradient(145deg, #fff6b8, #d6e8ff);
+}
+
+.prestige-upgrade-icon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border: 2px solid rgba(19, 34, 61, 0.2);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.74);
+  font-size: 25px;
+}
+
+.prestige-upgrade-card strong,
+.prestige-upgrade-card span,
+.prestige-upgrade-card small {
+  display: block;
+}
+
+.prestige-upgrade-card strong {
+  color: #13223d;
+  font-size: 16px;
+  line-height: 1.08;
+}
+
+.prestige-upgrade-card span {
+  margin-top: 4px;
+  line-height: 1.2;
+}
+
+.prestige-upgrade-card small {
+  margin-top: 5px;
+}
+
+.prestige-upgrade-card button {
+  min-height: 42px;
+  padding: 0 8px;
+  border: 3px solid #13223d;
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0 20%, rgba(255, 255, 255, 0) 21%),
+    linear-gradient(180deg, #e7d3ff, #91dfff);
+  box-shadow: 0 4px 0 #13223d;
+  color: #13223d;
+  font-size: 13px;
+  font-weight: 1000;
+  cursor: pointer;
+}
+
 .empty-screen {
   min-height: 260px;
   padding: 22px;
@@ -1580,11 +1830,11 @@ button:disabled {
 
 .invite-popup-modal {
   width: min(100%, 360px);
-  padding: 18px;
+  padding: 20px 18px;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  gap: 11px;
+  align-items: center;
+  gap: 12px;
   border: 3px solid #13223d;
   border-radius: 8px;
   background:
@@ -1595,25 +1845,26 @@ button:disabled {
   animation: reward-pop 420ms ease-out;
 }
 
-.invite-popup-emoji {
-  font-size: 62px;
-  line-height: 1;
+.invite-popup-modal h2 {
+  font-size: 30px;
+  text-align: center;
 }
 
 .invite-popup-modal p {
   color: #374962;
-  font-size: 14px;
-  font-weight: 850;
-  line-height: 1.35;
+  font-size: 18px;
+  font-weight: 1000;
+  line-height: 1.1;
 }
 
 .invite-benefits {
+  width: 100%;
   display: grid;
-  gap: 6px;
+  gap: 7px;
 }
 
 .invite-benefits span {
-  min-height: 34px;
+  min-height: 36px;
   padding: 8px 10px;
   display: grid;
   place-items: center;
@@ -1621,12 +1872,23 @@ button:disabled {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.72);
   color: #13223d;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 1000;
 }
 
-.compact-action {
-  min-height: 44px;
+.invite-popup-primary {
+  width: min(100%, 292px);
+  min-height: 68px;
+  margin-top: 4px;
+  font-size: 24px;
+  animation: invite-glow 1.45s ease-in-out infinite;
+}
+
+.invite-popup-secondary {
+  min-height: 42px;
+  padding-inline: 18px;
+  font-size: 13px;
+  box-shadow: 0 4px 0 #13223d, inset 0 2px 0 rgba(255, 255, 255, 0.62);
 }
 
 .bottom-nav {
@@ -1699,6 +1961,7 @@ button:disabled {
   .egg-button:hover,
   .shop-item button:hover,
   .paid-product-card button:hover,
+  .prestige-upgrade-card button:hover,
   .share-actions button:hover,
   .milestone-card button:hover,
   .cooldown-card button:hover {
@@ -1806,6 +2069,18 @@ button:disabled {
   }
   to {
     transform: scale(1);
+  }
+}
+
+@keyframes invite-glow {
+  0%,
+  100% {
+    filter: brightness(1);
+    box-shadow: 0 7px 0 #13223d, 0 0 16px rgba(255, 79, 137, 0.28), inset 0 2px 0 rgba(255, 255, 255, 0.62);
+  }
+  50% {
+    filter: brightness(1.07);
+    box-shadow: 0 7px 0 #13223d, 0 0 28px rgba(255, 79, 137, 0.58), inset 0 2px 0 rgba(255, 255, 255, 0.72);
   }
 }
 

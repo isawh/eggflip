@@ -19,7 +19,7 @@ export function CreatureCard({ creature, duplicateCount = 1, isActive = true, se
 
   return (
     <button
-      className={`creature-card ${selected ? 'selected' : ''}`}
+      className={`creature-card ${selected ? 'selected' : ''} ${isActive ? 'active' : 'stored'}`}
       onClick={onSelect}
       style={
         {
@@ -32,6 +32,7 @@ export function CreatureCard({ creature, duplicateCount = 1, isActive = true, se
     >
       <span className="duplicate-badge">x{duplicateCount}</span>
       {isActive && <span className="active-badge">Active</span>}
+      {!isActive && <span className="stored-badge">Stored</span>}
       <AssetImage
         alt={definition.name}
         className="creature-emoji"
@@ -42,7 +43,7 @@ export function CreatureCard({ creature, duplicateCount = 1, isActive = true, se
       <RarityBadge rarity={definition.rarity} />
       <span className="card-badge-row">
         <span className="level-badge">Lv {creature.level}</span>
-        <span className="income-badge">{income}/min</span>
+        <span className="income-badge">{isActive ? `${income}/min` : '0/min'}</span>
       </span>
     </button>
   );
