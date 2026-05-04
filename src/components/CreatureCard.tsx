@@ -6,15 +6,29 @@ import { RarityBadge } from './RarityBadge';
 
 interface CreatureCardProps {
   creature: OwnedCreature;
+  activeCount?: number;
   duplicateCount?: number;
+  incomePerMinute?: number;
   isActive?: boolean;
   selected?: boolean;
+  storedCount?: number;
   onSelect?: () => void;
 }
 
-export function CreatureCard({ creature, duplicateCount = 1, isActive = true, selected = false, onSelect }: CreatureCardProps) {
+export function CreatureCard({
+  creature,
+  activeCount,
+  duplicateCount = 1,
+  incomePerMinute,
+  isActive = true,
+  selected = false,
+  storedCount,
+  onSelect,
+}: CreatureCardProps) {
   const definition = getCreatureDefinition(creature.creatureId);
-  const income = getCreatureIncomePerMinute(creature);
+  const normalizedActiveCount = activeCount ?? (isActive ? 1 : 0);
+  const normalizedStoredCount = storedCount ?? Math.max(0, duplicateCount - normalizedActiveCount);
+  const income = incomePerMinute ?? (isActive ? getCreatureIncomePerMinute(creature) : 0);
   const rarityMeta = RARITY_META[definition.rarity];
 
   return (
@@ -31,8 +45,13 @@ export function CreatureCard({ creature, duplicateCount = 1, isActive = true, se
       type="button"
     >
       <span className="duplicate-badge">x{duplicateCount}</span>
-      {isActive && <span className="active-badge">Active</span>}
+      {isActive && (
+        <span className="active-badge">
+          {normalizedActiveCount > 1 ? `${normalizedActiveCount} Active` : 'Active'}
+        </span>
+      )}
       {!isActive && <span className="stored-badge">Stored</span>}
+      {isActive && normalizedStoredCount > 0 && <span className="stored-count-badge">+{normalizedStoredCount} stored</span>}
       <AssetImage
         alt={definition.name}
         className="creature-emoji"
@@ -43,7 +62,7 @@ export function CreatureCard({ creature, duplicateCount = 1, isActive = true, se
       <RarityBadge rarity={definition.rarity} />
       <span className="card-badge-row">
         <span className="level-badge">Lv {creature.level}</span>
-        <span className="income-badge">{isActive ? `${income}/min` : '0/min'}</span>
+        <span className="income-badge">{income}/min</span>
       </span>
     </button>
   );

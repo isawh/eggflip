@@ -1009,10 +1009,8 @@ interface CollectionScreenProps {
 }
 
 function CollectionScreen({ creatures, maxCreatureSlots, selectedUid, onSelect }: CollectionScreenProps) {
-  const duplicateCounts = creatures.reduce<Record<string, number>>((counts, creature) => {
-    counts[creature.creatureId] = (counts[creature.creatureId] ?? 0) + 1;
-    return counts;
-  }, {});
+  const groupedCreatures = getCreatureCollectionGroups(creatures, maxCreatureSlots);
+  const activeCopies = Math.min(creatures.length, maxCreatureSlots);
 
   if (creatures.length === 0) {
     return (
@@ -1028,23 +1026,71 @@ function CollectionScreen({ creatures, maxCreatureSlots, selectedUid, onSelect }
     <div className="screen-content collection-screen">
       <div className="section-heading">
         <h2>Collection</h2>
-        <span>{Math.min(creatures.length, maxCreatureSlots)}/{maxCreatureSlots} active</span>
+        <span>{activeCopies}/{maxCreatureSlots} active · {groupedCreatures.length} types</span>
       </div>
       <div className="collection-grid">
-        {creatures.map((creature, index) => (
+        {groupedCreatures.map((group) => (
           <CreatureCard
-            creature={creature}
-            duplicateCount={duplicateCounts[creature.creatureId] ?? 1}
-            isActive={index < maxCreatureSlots}
-            key={creature.uid}
-            onSelect={() => onSelect(creature, true)}
-            selected={creature.uid === selectedUid}
+            activeCount={group.activeCount}
+            creature={group.representative}
+            duplicateCount={group.duplicateCount}
+            incomePerMinute={group.activeIncomePerMinute}
+            isActive={group.activeCount > 0}
+            key={group.creatureId}
+            onSelect={() => onSelect(group.representative, true)}
+            selected={group.copies.some((creature) => creature.uid === selectedUid)}
+            storedCount={group.storedCount}
           />
         ))}
       </div>
     </div>
   );
 }
+
+interface CreatureCollectionGroup {
+  creatureId: string;
+  copies: OwnedCreature[];
+  representative: OwnedCreature;
+  duplicateCount: number;
+  activeCount: number;
+  storedCount: number;
+  activeIncomePerMinute: number;
+}
+
+const getCreatureCollectionGroups = (creatures: OwnedCreature[], maxCreatureSlots: number): CreatureCollectionGroup[] => {
+  const grouped = new Map<string, Array<{ creature: OwnedCreature; isActive: boolean }>>();
+
+  creatures.forEach((creature, index) => {
+    const copies = grouped.get(creature.creatureId) ?? [];
+    copies.push({ creature, isActive: index < maxCreatureSlots });
+    grouped.set(creature.creatureId, copies);
+  });
+
+  return Array.from(grouped.entries()).map(([creatureId, copies]) => {
+    const activeCopies = copies.filter((copy) => copy.isActive);
+    const representativePool = activeCopies.length > 0 ? activeCopies : copies;
+    const representative = representativePool.reduce((best, copy) => {
+      if (copy.creature.level !== best.creature.level) {
+        return copy.creature.level > best.creature.level ? copy : best;
+      }
+
+      return copy.creature.hatchedAt > best.creature.hatchedAt ? copy : best;
+    }).creature;
+
+    return {
+      creatureId,
+      copies: copies.map((copy) => copy.creature),
+      representative,
+      duplicateCount: copies.length,
+      activeCount: activeCopies.length,
+      storedCount: copies.length - activeCopies.length,
+      activeIncomePerMinute: activeCopies.reduce(
+        (total, copy) => total + getCreatureIncomePerMinute(copy.creature),
+        0,
+      ),
+    };
+  });
+};
 
 interface UpgradeScreenProps {
   creature: OwnedCreature | null;
