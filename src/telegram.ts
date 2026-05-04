@@ -41,6 +41,10 @@ interface TelegramWebApp {
   contentSafeAreaInset?: TelegramInset;
   ready?: () => void;
   expand?: () => void;
+  requestFullscreen?: () => void;
+  disableVerticalSwipes?: () => void;
+  isFullscreen?: boolean;
+  onEvent?: (eventType: string, eventHandler: () => void) => void;
   setBackgroundColor?: (color: string) => void;
   setHeaderColor?: (color: string) => void;
   HapticFeedback?: {
@@ -59,6 +63,8 @@ declare global {
 }
 
 let hapticsEnabled = false;
+let fullscreenRequested = false;
+let telegramEventsBound = false;
 
 const getWebApp = (): TelegramWebApp | undefined => {
   if (typeof window === 'undefined') {
@@ -101,11 +107,49 @@ const setCssInset = (prefix: string, inset: TelegramInset | undefined) => {
   root.style.setProperty(`${prefix}-left`, `${left}px`);
 };
 
+const syncTelegramSafeArea = (webApp = getWebApp()) => {
+  setCssInset('--eggflip-safe-area', webApp?.safeAreaInset);
+  setCssInset('--eggflip-content-safe-area', webApp?.contentSafeAreaInset);
+};
+
+const syncTelegramFullscreenClass = (webApp = getWebApp(), preservePendingRequest = false) => {
+  if (typeof document === 'undefined') {
+    return;
+  }
+
+  const isFullscreen = Boolean(webApp?.isFullscreen);
+  if (!preservePendingRequest || isFullscreen) {
+    fullscreenRequested = isFullscreen;
+  }
+
+  document.documentElement.classList.toggle(
+    'telegram-fullscreen-active',
+    isFullscreen || fullscreenRequested,
+  );
+};
+
+const syncTelegramViewportState = (webApp = getWebApp(), preservePendingRequest = false) => {
+  syncTelegramSafeArea(webApp);
+  syncTelegramFullscreenClass(webApp, preservePendingRequest);
+};
+
+const bindTelegramViewportEvents = (webApp: TelegramWebApp) => {
+  if (telegramEventsBound) {
+    return;
+  }
+
+  telegramEventsBound = true;
+  safely(() => webApp.onEvent?.('fullscreenChanged', () => syncTelegramViewportState()));
+  safely(() => webApp.onEvent?.('viewportChanged', () => syncTelegramViewportState()));
+};
+
 export const isTelegram = (): boolean => Boolean(getWebApp());
 
 export const getUser = (): TelegramWebAppUser | null => getWebApp()?.initDataUnsafe?.user ?? null;
 
 export const getStartParam = (): string | null => getWebApp()?.initDataUnsafe?.start_param ?? null;
+
+export const isTelegramFullscreen = (): boolean => Boolean(getWebApp()?.isFullscreen || fullscreenRequested);
 
 export const expandApp = () => {
   const webApp = getWebApp();
@@ -116,6 +160,17 @@ export const expandApp = () => {
 
   safely(() => webApp.ready?.());
   safely(() => webApp.expand?.());
+  if (webApp.requestFullscreen && !webApp.isFullscreen) {
+    try {
+      fullscreenRequested = true;
+      webApp.requestFullscreen();
+    } catch {
+      fullscreenRequested = false;
+    }
+  }
+  safely(() => webApp.disableVerticalSwipes?.());
+  syncTelegramViewportState(webApp, true);
+  bindTelegramViewportEvents(webApp);
 };
 
 export const enableHaptics = (): boolean => {
@@ -140,8 +195,7 @@ export const applyTelegramThemeColors = () => {
   setCssColor('--eggflip-tg-button-color', theme.button_color);
   setCssColor('--eggflip-tg-button-text-color', theme.button_text_color);
   setCssColor('--eggflip-tg-bottom-bar-color', theme.bottom_bar_bg_color);
-  setCssInset('--eggflip-safe-area', webApp.safeAreaInset);
-  setCssInset('--eggflip-content-safe-area', webApp.contentSafeAreaInset);
+  syncTelegramSafeArea(webApp);
 
   if (theme.bg_color) {
     safely(() => webApp.setBackgroundColor?.(theme.bg_color as string));

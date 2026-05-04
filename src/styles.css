@@ -14,6 +14,8 @@
   --eggflip-content-safe-area-right: 0px;
   --eggflip-content-safe-area-bottom: 0px;
   --eggflip-content-safe-area-left: 0px;
+  --eggflip-bottom-nav-height: 70px;
+  --eggflip-shell-height: 100vh;
   font-family: Inter, ui-rounded, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--eggflip-tg-text-color);
   background: var(--eggflip-tg-bg-color);
@@ -69,7 +71,9 @@ button {
 }
 
 .app-shell {
-  width: 100vw;
+  width: 100%;
+  min-height: var(--eggflip-shell-height);
+  height: var(--eggflip-shell-height);
   min-height: 100dvh;
   height: 100dvh;
   display: block;
@@ -82,14 +86,16 @@ button {
 }
 
 .phone-frame {
-  width: 100vw;
+  width: 100%;
   max-width: none;
+  height: var(--eggflip-shell-height);
+  min-height: var(--eggflip-shell-height);
   height: 100dvh;
   min-height: 100dvh;
   padding:
     calc(10px + env(safe-area-inset-top, 0px) + var(--eggflip-safe-area-top) + var(--eggflip-content-safe-area-top))
     calc(10px + env(safe-area-inset-right, 0px) + var(--eggflip-safe-area-right) + var(--eggflip-content-safe-area-right))
-    calc(96px + env(safe-area-inset-bottom, 0px) + var(--eggflip-safe-area-bottom) + var(--eggflip-content-safe-area-bottom))
+    calc(var(--eggflip-bottom-nav-height) + 26px + env(safe-area-inset-bottom, 0px) + var(--eggflip-safe-area-bottom) + var(--eggflip-content-safe-area-bottom))
     calc(10px + env(safe-area-inset-left, 0px) + var(--eggflip-safe-area-left) + var(--eggflip-content-safe-area-left));
   display: flex;
   flex-direction: column;
@@ -269,6 +275,7 @@ h2 {
 
 .screen-panel {
   flex: 1;
+  min-width: 0;
   min-height: 0;
   display: flex;
   overflow: hidden;
@@ -276,12 +283,15 @@ h2 {
 
 .screen-content {
   width: 100%;
+  min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
   overflow-y: auto;
   overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   padding-bottom: 12px;
   animation: screen-in 180ms ease-out;
 }
@@ -2068,7 +2078,7 @@ button:disabled {
   bottom: calc(10px + env(safe-area-inset-bottom, 0px) + var(--eggflip-safe-area-bottom) + var(--eggflip-content-safe-area-bottom));
   z-index: 5;
   width: auto;
-  min-height: 70px;
+  min-height: var(--eggflip-bottom-nav-height);
   padding: 7px;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2287,26 +2297,242 @@ button:disabled {
 }
 
 @media (max-width: 360px) {
+  :root {
+    --eggflip-bottom-nav-height: 64px;
+  }
+
   .phone-frame {
-    padding-left: calc(10px + env(safe-area-inset-left, 0px) + var(--eggflip-safe-area-left) + var(--eggflip-content-safe-area-left));
-    padding-right: calc(10px + env(safe-area-inset-right, 0px) + var(--eggflip-safe-area-right) + var(--eggflip-content-safe-area-right));
+    gap: 7px;
+    padding:
+      calc(8px + env(safe-area-inset-top, 0px) + var(--eggflip-safe-area-top) + var(--eggflip-content-safe-area-top))
+      calc(8px + env(safe-area-inset-right, 0px) + var(--eggflip-safe-area-right) + var(--eggflip-content-safe-area-right))
+      calc(var(--eggflip-bottom-nav-height) + 22px + env(safe-area-inset-bottom, 0px) + var(--eggflip-safe-area-bottom) + var(--eggflip-content-safe-area-bottom))
+      calc(8px + env(safe-area-inset-left, 0px) + var(--eggflip-safe-area-left) + var(--eggflip-content-safe-area-left));
+  }
+
+  .screen-content {
+    gap: 8px;
+  }
+
+  .screen-content > *,
+  .section-heading,
+  .shop-item,
+  .paid-product-card,
+  .milestone-card,
+  .prestige-upgrade-card,
+  .cooldown-card,
+  .tier-progress-card,
+  .home-hero {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  h1 {
+    font-size: 25px;
+  }
+
+  h2 {
+    font-size: 19px;
+  }
+
+  .section-heading span,
+  .telegram-label,
+  .shop-section-label,
+  .hero-copy span,
+  .status-title,
+  .small-label {
+    font-size: 11px;
   }
 
   .stats-grid,
   .home-metrics,
-  .quick-shop {
-    gap: 6px;
+  .quick-shop,
+  .paid-products,
+  .milestone-list,
+  .prestige-upgrade-list,
+  .more-grid {
+    gap: 8px;
   }
 
   .stat-pill {
     padding: 6px;
   }
 
+  .home-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .home-stats .stat-pill {
+    min-height: 48px;
+  }
+
+  .home-stats .stat-label {
+    font-size: 9px;
+  }
+
+  .home-stats .stat-pill strong {
+    font-size: 12px;
+  }
+
   .stat-icon {
     display: none;
   }
 
+  .home-hero {
+    min-height: clamp(184px, 30dvh, 214px);
+    padding: 10px 12px 15px;
+  }
+
+  .hero-egg {
+    width: clamp(110px, 34vw, 126px);
+    height: clamp(110px, 34vw, 126px);
+  }
+
+  .hatch-action {
+    min-height: 52px;
+    font-size: 22px;
+  }
+
+  .cooldown-card {
+    grid-template-columns: minmax(0, 1fr) 74px;
+  }
+
+  .cooldown-card strong {
+    font-size: 21px;
+  }
+
+  .cooldown-card p {
+    font-size: 13px;
+  }
+
   .shop-item {
-    grid-template-columns: 42px minmax(0, 1fr) 78px;
+    min-height: 84px;
+    padding: 9px 8px;
+    grid-template-columns: 34px minmax(0, 1fr) 72px;
+    gap: 6px;
+  }
+
+  .shop-icon {
+    width: 34px;
+    height: 34px;
+    font-size: 20px;
+  }
+
+  .shop-item strong {
+    overflow: hidden;
+    font-size: 14px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .shop-item span {
+    font-size: 12px;
+  }
+
+  .shop-item button {
+    min-height: 40px;
+    padding: 0 4px;
+    font-size: 10px;
+    white-space: nowrap;
+  }
+
+  .paid-product-card {
+    min-height: 88px;
+    padding: 10px;
+    grid-template-columns: 42px minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .paid-icon {
+    width: 42px;
+    height: 42px;
+    font-size: 23px;
+  }
+
+  .paid-copy strong {
+    font-size: 15px;
+  }
+
+  .paid-product-card button {
+    min-height: 42px;
+    font-size: 13px;
+  }
+
+  .more-card {
+    min-height: 116px;
+    padding: 12px 8px;
+  }
+
+  .more-card strong {
+    font-size: 17px;
+  }
+
+  .two-sided-reward-card {
+    grid-template-columns: 1fr;
+  }
+
+  .milestone-card,
+  .prestige-upgrade-card {
+    grid-template-columns: 42px minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .milestone-icon,
+  .prestige-upgrade-icon {
+    width: 42px;
+    height: 42px;
+    font-size: 22px;
+  }
+
+  .milestone-card button,
+  .prestige-upgrade-card button {
+    grid-column: 1 / -1;
+    min-height: 40px;
+  }
+
+  .milestone-copy strong,
+  .prestige-upgrade-card strong {
+    font-size: 15px;
+  }
+
+  .milestone-copy p,
+  .prestige-upgrade-card span {
+    font-size: 11px;
+  }
+
+  .prestige-hero {
+    min-height: 100px;
+    padding: 10px;
+    grid-template-columns: 48px minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .prestige-hero > div:last-child {
+    grid-column: 2;
+  }
+
+  .prestige-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 28px;
+  }
+
+  .bottom-nav {
+    left: calc(8px + env(safe-area-inset-left, 0px) + var(--eggflip-safe-area-left) + var(--eggflip-content-safe-area-left));
+    right: calc(8px + env(safe-area-inset-right, 0px) + var(--eggflip-safe-area-right) + var(--eggflip-content-safe-area-right));
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px) + var(--eggflip-safe-area-bottom) + var(--eggflip-content-safe-area-bottom));
+    padding: 6px;
+  }
+
+  .nav-item {
+    min-height: 50px;
+  }
+
+  .nav-item span:first-child {
+    font-size: 19px;
+  }
+
+  .nav-item span:last-child {
+    font-size: 9px;
   }
 }
