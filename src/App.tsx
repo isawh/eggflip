@@ -509,6 +509,7 @@ function App() {
               now={now}
               onHatch={hatchPreferredEgg}
               onClaimFreeEgg={claimFreeEgg}
+              onOpenPrestige={() => setActiveScreen('prestige')}
             />
           )}
           {activeScreen === 'hatch' && (
@@ -842,6 +843,7 @@ interface HomeScreenProps {
   now: number;
   onHatch: () => void;
   onClaimFreeEgg: () => void;
+  onOpenPrestige: () => void;
 }
 
 function HomeScreen({
@@ -850,19 +852,23 @@ function HomeScreen({
   now,
   onHatch,
   onClaimFreeEgg,
+  onOpenPrestige,
 }: HomeScreenProps) {
   const totalEggs = getEggCount(gameState);
   const freeReadyAt = getFreeEggReadyAt(gameState);
   const freeReady = now >= freeReadyAt;
   const freeCooldown = getCooldownLabel(freeReadyAt - now);
   const tierProgress = getTierProgress(gameState);
+  const essenceGain = getPrestigeEssenceGain(gameState);
+  const showEssenceAccess = gameState.essence > 0 || gameState.prestigeCount > 0 || essenceGain > 0;
 
   return (
     <div className="screen-content home-screen">
       <section className="stats-grid home-stats" aria-label="Player resources">
-        <StatPill icon="Coins" label="Coins" value={formatNumber(gameState.coins)} />
-        <StatPill icon="Gems" label="Gems" value={formatNumber(gameState.gems)} />
-        <StatPill icon="Inc" label="Income" value={`${formatNumber(totalIncome)}/min`} />
+        <StatPill icon="🪙" label="Coins" value={formatNumber(gameState.coins)} />
+        <StatPill icon="💎" label="Gems" value={formatNumber(gameState.gems)} />
+        <StatPill icon="🥚" label="Premium" value={formatNumber(gameState.premiumEggs)} />
+        <StatPill icon="⚡" label="Income" value={`${formatNumber(totalIncome)}/min`} />
       </section>
 
       <div className="home-hero">
@@ -881,7 +887,7 @@ function HomeScreen({
       <div className="tier-progress-card">
         <div className="tier-progress-header">
           <div>
-            <span>Current Tier</span>
+            <span>Tier</span>
             <strong>Tier {tierProgress.currentTier}: {tierProgress.currentLabel}</strong>
           </div>
           <div>
@@ -909,6 +915,14 @@ function HomeScreen({
           {freeReady ? 'Claim' : 'Wait'}
         </button>
       </div>
+
+      {showEssenceAccess && (
+        <button className="essence-access" onClick={onOpenPrestige} type="button">
+          <span>✦ Essence</span>
+          <strong>{formatNumber(gameState.essence)}</strong>
+          <small>{essenceGain > 0 ? `+${formatNumber(essenceGain)} on reset` : `${gameState.prestigeCount} resets`}</small>
+        </button>
+      )}
 
     </div>
   );
@@ -1156,7 +1170,7 @@ function ShopScreen({
     <div className="screen-content shop-screen">
       <div className="section-heading">
         <h2>Shop</h2>
-        <span>{gameState.premiumEggs} Pro eggs</span>
+        <span>{gameState.premiumEggs} premium</span>
       </div>
 
       {boostRemainingMs > 0 && (
@@ -1169,7 +1183,7 @@ function ShopScreen({
       <div className="shop-section-label">Eggs</div>
       <ShopItem
         variant="free"
-        icon="Egg"
+        icon="🥚"
         title="Free Egg"
         subtitle={freeReady ? 'Ready' : cooldown}
         action={freeReady ? 'Claim' : cooldown}
@@ -1177,7 +1191,7 @@ function ShopScreen({
       />
       <ShopItem
         variant="coin"
-        icon="Basic"
+        icon="🥚"
         title="Basic Egg"
         subtitle={`Tier ${gameState.playerTier}`}
         action={`${ECONOMY.basicEggCoinCost} coins`}
@@ -1185,8 +1199,8 @@ function ShopScreen({
       />
       <ShopItem
         variant="gem"
-        icon="Pro"
-        title="Pro Egg"
+        icon="✨"
+        title="Premium Egg"
         subtitle="Better odds"
         action={`${ECONOMY.premiumEggGemCost} gems`}
         onClick={onBuyPremium}
@@ -1285,19 +1299,19 @@ function MoreScreen({ soundEnabled, onNavigate, onToggleSound }: MoreScreenProps
       </div>
       <div className="more-grid">
         <button className="more-card prestige" onClick={() => onNavigate('prestige')} type="button">
-          <span aria-hidden="true">P</span>
+          <span aria-hidden="true">✦</span>
           <strong>Prestige</strong>
         </button>
         <button className="more-card daily" onClick={() => onNavigate('daily')} type="button">
-          <span aria-hidden="true">D</span>
+          <span aria-hidden="true">⭐</span>
           <strong>Daily</strong>
         </button>
         <button className="more-card invite" onClick={() => onNavigate('referral')} type="button">
-          <span aria-hidden="true">I</span>
+          <span aria-hidden="true">🎁</span>
           <strong>Invite</strong>
         </button>
         <button className={`more-card sound ${soundEnabled ? 'active' : ''}`} onClick={onToggleSound} type="button">
-          <span aria-hidden="true">{soundEnabled ? 'On' : 'Off'}</span>
+          <span aria-hidden="true">{soundEnabled ? '🔊' : '🔇'}</span>
           <strong>Sound</strong>
         </button>
       </div>

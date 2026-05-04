@@ -28,19 +28,18 @@
 }
 
 html,
+body,
 #root {
   width: 100%;
   height: 100%;
-  min-height: 100dvh;
+  margin: 0;
+  padding: 0;
   overflow: hidden;
 }
 
 body {
-  margin: 0;
   min-width: 320px;
-  width: 100%;
-  min-height: 100dvh;
-  overflow: hidden;
+  min-height: 100%;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.44), rgba(255, 255, 255, 0) 38%),
     linear-gradient(145deg, #69d2ff 0%, #9df4c8 48%, #ffe176 100%);
@@ -71,10 +70,9 @@ button {
 
 .app-shell {
   width: 100%;
-  height: 100dvh;
   min-height: 100dvh;
-  display: flex;
-  justify-content: center;
+  height: 100dvh;
+  display: block;
   overflow: hidden;
   background-color: var(--eggflip-tg-bg-color);
   background-image:
@@ -84,9 +82,10 @@ button {
 }
 
 .phone-frame {
-  width: min(100%, 430px);
+  width: 100%;
+  max-width: none;
   height: 100dvh;
-  min-height: 0;
+  min-height: 100dvh;
   padding:
     calc(10px + env(safe-area-inset-top, 0px) + var(--eggflip-safe-area-top) + var(--eggflip-content-safe-area-top))
     calc(10px + env(safe-area-inset-right, 0px) + var(--eggflip-safe-area-right) + var(--eggflip-content-safe-area-right))
@@ -199,6 +198,33 @@ h2 {
 
 .home-stats {
   display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.home-stats .stat-pill {
+  min-height: 58px;
+  padding: 7px 5px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  text-align: center;
+}
+
+.home-stats .stat-icon {
+  flex: 0 0 26px;
+  width: 26px;
+  height: 26px;
+  font-size: 16px;
+}
+
+.home-stats .stat-label {
+  font-size: 9px;
+  line-height: 1;
+}
+
+.home-stats .stat-pill strong {
+  font-size: 13px;
 }
 
 .stat-pill {
@@ -262,15 +288,6 @@ h2 {
 
 .home-screen {
   align-items: stretch;
-}
-
-.home-screen .home-metrics,
-.home-screen .goal-strip,
-.home-screen .first-boost-card,
-.home-screen .boost-card,
-.home-screen .quick-shop,
-.home-screen .shop-link {
-  display: none;
 }
 
 .home-hero {
@@ -596,6 +613,48 @@ h2 {
   cursor: pointer;
 }
 
+.essence-access {
+  min-height: 62px;
+  padding: 10px 13px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 12px;
+  border: 3px solid #13223d;
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(255, 255, 255, 0.12)),
+    linear-gradient(145deg, #f8dcff, #75dfff);
+  box-shadow: 0 5px 0 #13223d, 0 0 18px rgba(125, 67, 216, 0.22), inset 0 2px 0 rgba(255, 255, 255, 0.72);
+  color: #13223d;
+  cursor: pointer;
+  text-align: left;
+  transition: transform 150ms ease, box-shadow 150ms ease, filter 150ms ease;
+}
+
+.essence-access span,
+.essence-access strong,
+.essence-access small {
+  display: block;
+}
+
+.essence-access span {
+  font-size: 13px;
+  font-weight: 1000;
+}
+
+.essence-access strong {
+  grid-row: span 2;
+  font-size: 26px;
+  line-height: 1;
+}
+
+.essence-access small {
+  color: #55667b;
+  font-size: 11px;
+  font-weight: 900;
+}
+
 .quick-shop {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -692,7 +751,8 @@ h2 {
 .cooldown-card button:active,
 .creature-card:active,
 .mini-creature:active,
-.more-card:active {
+.more-card:active,
+.essence-access:active {
   transform: translateY(3px) scale(0.98);
   box-shadow: 0 3px 0 #13223d;
 }
@@ -1242,8 +1302,8 @@ button:disabled {
   border: 2px solid rgba(19, 34, 61, 0.18);
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.7);
-  font-size: 12px;
-  font-weight: 1000;
+  font-size: 28px;
+  font-weight: 900;
 }
 
 .shop-item strong,
@@ -1989,22 +2049,16 @@ button:disabled {
 
 .bottom-nav {
   position: fixed;
-  left: 50%;
+  left: calc(10px + env(safe-area-inset-left, 0px) + var(--eggflip-safe-area-left) + var(--eggflip-content-safe-area-left));
+  right: calc(10px + env(safe-area-inset-right, 0px) + var(--eggflip-safe-area-right) + var(--eggflip-content-safe-area-right));
   bottom: calc(10px + env(safe-area-inset-bottom, 0px) + var(--eggflip-safe-area-bottom) + var(--eggflip-content-safe-area-bottom));
   z-index: 5;
-  width: min(
-    calc(
-      100% - 20px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) -
-        var(--eggflip-safe-area-left) - var(--eggflip-safe-area-right)
-    ),
-    410px
-  );
+  width: auto;
   min-height: 70px;
   padding: 7px;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
-  transform: translateX(-50%);
   border: 3px solid #13223d;
   border-radius: 8px;
   background: var(--eggflip-tg-bottom-bar-color);
@@ -2061,7 +2115,8 @@ button:disabled {
   .share-actions button:hover,
   .milestone-card button:hover,
   .cooldown-card button:hover,
-  .more-card:hover {
+  .more-card:hover,
+  .essence-access:hover {
     filter: brightness(1.04);
     transform: translateY(-1px);
   }
