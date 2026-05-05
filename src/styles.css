@@ -3253,3 +3253,27 @@ button:disabled {
     height: clamp(82px, 28vw, 96px) !important;
   }
 }
+
+@media (max-width: 430px) {
+  .home-hero {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 260px !important;
+    padding-bottom: 16px !important;
+    overflow: visible !important;
+  }
+
+  .hero-egg {
+    overflow: visible !important;
+  }
+
+  .hatch-action {
+    position: static !important;
+    transform: none !important;
+    margin-top: auto !important;
+    margin-bottom: 4px !important;
+  }
+}
