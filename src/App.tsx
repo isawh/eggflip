@@ -1,4 +1,4 @@
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
+import { type CSSProperties, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AssetImage } from './components/AssetImage';
 import { BottomNav } from './components/BottomNav';
 import { CreatureCard } from './components/CreatureCard';
@@ -40,8 +40,9 @@ import {
   getFreeEggReadyAt,
   getGeneratorUpgradeCost,
   getIdleGeneratorCoinsPerCycle,
-  getIdleGeneratorProgressPercent,
-  getMainIdleProgressPercent,
+  getIdleLoopPhase,
+  getIdleGeneratorLoopPhase,
+  getMainIdleLoopPhase,
   getMainLoopCoinsPerCycle,
   getIncomeBoostRemainingMs,
   getNextDailyReward,
@@ -95,6 +96,61 @@ interface SessionStart {
   state: GameState;
   offlineCoins: number;
   inviteeBonusApplied: boolean;
+}
+
+const IDLE_PAYOUT_FLASH_MS = 340;
+
+/** Flash + one frame without CSS transition when `cycleStartAt` advances (real payout boundary). */
+function useIdleCyclePayoutCue(cycleStartAt: number, active: boolean): { payoutFlash: boolean; snapPhase: boolean } {
+  const lastSeenStartRef = useRef(cycleStartAt);
+  const [payoutFlash, setPayoutFlash] = useState(false);
+  const [snapPhase, setSnapPhase] = useState(false);
+
+  useLayoutEffect(() => {
+    if (!active) {
+      lastSeenStartRef.current = cycleStartAt;
+      return;
+    }
+
+    const last = lastSeenStartRef.current;
+    if (last !== cycleStartAt) {
+      lastSeenStartRef.current = cycleStartAt;
+      setSnapPhase(true);
+      requestAnimationFrame(() => {
+        setSnapPhase(false);
+      });
+      setPayoutFlash(true);
+      const timeoutId = window.setTimeout(() => setPayoutFlash(false), IDLE_PAYOUT_FLASH_MS);
+      return () => window.clearTimeout(timeoutId);
+    }
+  }, [cycleStartAt, active]);
+
+  return { payoutFlash, snapPhase };
+}
+
+interface SyncedLinearCycleBarProps {
+  cycleStartAt: number;
+  cycleDurationMs: number;
+  now: number;
+  active: boolean;
+  ariaLabel: string;
+}
+
+function SyncedLinearCycleBar({ cycleStartAt, cycleDurationMs, now, active, ariaLabel }: SyncedLinearCycleBarProps) {
+  const phase = active ? getIdleLoopPhase(now, cycleStartAt, cycleDurationMs) : null;
+  const progressPercent = phase?.progressPercent ?? 0;
+  const { payoutFlash, snapPhase } = useIdleCyclePayoutCue(cycleStartAt, active);
+  const fillClass = active
+    ? snapPhase
+      ? 'generator-loop-fill--instant'
+      : 'generator-loop-fill--smooth'
+    : 'generator-loop-fill--instant';
+
+  return (
+    <div className={`generator-loop-track${payoutFlash ? ' just-paid' : ''}`} aria-label={ariaLabel}>
+      <span className={`generator-loop-fill ${fillClass}`} style={{ width: `${progressPercent}%` }} />
+    </div>
+  );
 }
 
 function App() {
@@ -169,19 +225,33 @@ function App() {
     );
   }, [sessionStart.inviteeBonusApplied]);
 
-  useEffect(() => {
-    const visualTimer = window.setInterval(() => {
-      setNow(Date.now());
-    }, 280);
+  /** Wall clock sampled here drives both progress visuals and payouts (same `t` ⇒ no phase/coin mismatch). */
+  const UI_TICK_MS = 250;
 
-    const economyTimer = window.setInterval(() => {
-      const current = Date.now();
-      setGameState((state) => applyPassiveIncome(state, current));
-    }, 1_000);
+  useEffect(() => {
+    const tick = (): void => {
+      const nextNow = Date.now();
+      setNow(nextNow);
+      setGameState((state) => applyPassiveIncome(state, nextNow));
+    };
+
+    tick();
+    const timer = window.setInterval(tick, UI_TICK_MS);
+
+    const onVisibility = (): void => {
+      if (document.visibilityState !== 'visible') {
+        return;
+      }
+      const nextNow = Date.now();
+      setNow(nextNow);
+      setGameState((state) => applyPassiveIncome(state, nextNow));
+    };
+
+    document.addEventListener('visibilitychange', onVisibility);
 
     return () => {
-      window.clearInterval(visualTimer);
-      window.clearInterval(economyTimer);
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, []);
 
@@ -197,7 +267,11 @@ function App() {
   }, []);
 
   useEffect(() => {
-    saveGameState(gameState);
+    const delayed = window.setTimeout(() => {
+      saveGameState(gameState);
+    }, 600);
+
+    return () => window.clearTimeout(delayed);
   }, [gameState]);
 
   const selectedCreature = useMemo(
@@ -914,17 +988,30 @@ interface MainIncomeLoopProps {
 }
 
 function MainIncomeLoop({ gameState, now, mainPayout }: MainIncomeLoopProps) {
-  const cycleProgress = getMainIdleProgressPercent(gameState, now);
+  const cycleStart = gameState.mainLoopLastPayoutAt;
+  const phase = getMainIdleLoopPhase(gameState, now);
+  const cycleProgress = phase.progressPercent;
+  const { payoutFlash, snapPhase } = useIdleCyclePayoutCue(cycleStart, true);
   const isCompleting = cycleProgress > 84;
   const cycleStyle = {
     '--cycle-progress': `${cycleProgress * 3.6}deg`,
   } as CSSProperties;
-  const phaseMs = (now - gameState.mainLoopLastPayoutAt) % MAIN_IDLE_CYCLE_MS;
-  const secLeft = Math.max(0, Math.ceil((MAIN_IDLE_CYCLE_MS - phaseMs) / 1000));
 
   return (
-    <div className={`income-cycle-card ${isCompleting ? 'is-completing' : ''}`} aria-label="Main payout loop">
-      <div className="income-cycle-ring" style={cycleStyle}>
+    <div
+      className={[
+        'income-cycle-card',
+        payoutFlash ? 'just-paid' : '',
+        isCompleting ? 'is-completing' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      aria-label="Main payout loop"
+    >
+      <div
+        className={`income-cycle-ring${snapPhase ? ' income-cycle-ring--phase-snap' : ''}`}
+        style={cycleStyle}
+      >
         <div className="income-cycle-core">
           <span>Next</span>
           <strong>+{formatNumber(mainPayout)}</strong>
@@ -933,8 +1020,8 @@ function MainIncomeLoop({ gameState, now, mainPayout }: MainIncomeLoopProps) {
       </div>
       <div className="income-cycle-meta">
         <span>Main loop</span>
-        <strong>{secLeft}s</strong>
-        <small>Full ring every {MAIN_IDLE_CYCLE_MS / 1000}s — payout on complete</small>
+        <strong>{phase.secRemaining}s</strong>
+        <small>Cycle: wall time − start every {MAIN_IDLE_CYCLE_MS / 1000}s</small>
       </div>
     </div>
   );
@@ -951,13 +1038,11 @@ function GeneratorLoopCard({ gameState, generatorId, now, onUpgrade }: Generator
   const cfg = IDLE_GENERATORS[generatorId];
   const unlocked = isIdleGeneratorUnlocked(gameState, generatorId);
   const gen = gameState.idleGenerators[generatorId];
-  const progress = unlocked ? getIdleGeneratorProgressPercent(gameState, generatorId, now) : 0;
+  const phaseDetail = unlocked ? getIdleGeneratorLoopPhase(gameState, generatorId, now) : null;
   const incomePerCycle = unlocked ? getIdleGeneratorCoinsPerCycle(gameState, generatorId, now) : 0;
   const perMinute = unlocked ? Math.round((incomePerCycle / cfg.cycleMs) * MILLISECONDS_PER_MINUTE) : 0;
   const cost = getGeneratorUpgradeCost(gameState, generatorId);
   const canBuy = canAffordGeneratorUpgrade(gameState, generatorId);
-  const phaseMs = unlocked ? (now - gen.lastCollectedAt) % cfg.cycleMs : 0;
-  const secLeft = unlocked ? Math.max(0, Math.ceil((cfg.cycleMs - phaseMs) / 1000)) : 0;
 
   return (
     <div className={`generator-loop-card ${generatorId}`}>
@@ -965,12 +1050,20 @@ function GeneratorLoopCard({ gameState, generatorId, now, onUpgrade }: Generator
         <span>{cfg.title}</span>
         <strong>Lv {gen.level}</strong>
       </div>
-      <div className="generator-loop-track" aria-label={`${cfg.title} payout timer`}>
-        <span style={{ width: `${progress}%` }} />
-      </div>
+      <SyncedLinearCycleBar
+        active={unlocked}
+        ariaLabel={`${cfg.title} payout timer`}
+        cycleDurationMs={cfg.cycleMs}
+        cycleStartAt={gen.lastCollectedAt}
+        now={now}
+      />
       <div className="generator-loop-footer">
         <span>{unlocked ? `${formatNumber(perMinute)}/m` : `Tier ${cfg.unlockTier}`}</span>
-        <strong>{unlocked ? `+${formatNumber(incomePerCycle)} · ${secLeft}s` : 'Locked'}</strong>
+        <strong>
+          {unlocked && phaseDetail
+            ? `+${formatNumber(incomePerCycle)} · ${phaseDetail.secRemaining}s`
+            : 'Locked'}
+        </strong>
       </div>
       <button className="generator-upgrade-btn" disabled={!unlocked || !canBuy} onClick={onUpgrade} type="button">
         {unlocked ? `Upgrade ${formatNumber(cost)}` : 'Locked'}

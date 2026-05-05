@@ -99,20 +99,59 @@ export const getMainLoopCoinsPerCycle = (state: GameState, now: number): number 
   );
 };
 
-export const getMainIdleProgressPercent = (state: GameState, now: number): number => {
-  const elapsed = Math.max(0, now - state.mainLoopLastPayoutAt);
-  return Math.min(100, ((elapsed % MAIN_IDLE_CYCLE_MS) / MAIN_IDLE_CYCLE_MS) * 100);
+/** One idle payout loop: wall clock minus last boundary, duration fixed. Phase shifts by full durations only — never snapping `start` to `now`. */
+export interface IdleLoopPhase {
+  /** 0–1 within current cycle (for bars / ring) */
+  progress01: number;
+  progressPercent: number;
+  phaseMs: number;
+  cycleDurationMs: number;
+  secRemaining: number;
+  /** How many whole cycles elapsed since cycleStartAt (canonical; same idea as payouts) */
+  fullCyclesElapsed: number;
+}
+
+export const getIdleLoopPhase = (
+  now: number,
+  /** Last completed payout boundary = start of the current filling cycle */
+  cycleStartAt: number,
+  cycleDurationMs: number,
+): IdleLoopPhase => {
+  const elapsed = Math.max(0, now - cycleStartAt);
+  const phaseMs = elapsed % cycleDurationMs;
+  const progress01 = phaseMs / cycleDurationMs;
+
+  return {
+    progress01,
+    progressPercent: progress01 * 100,
+    phaseMs,
+    cycleDurationMs,
+    secRemaining: Math.max(0, Math.ceil((cycleDurationMs - phaseMs) / 1000)),
+    fullCyclesElapsed: Math.floor(elapsed / cycleDurationMs),
+  };
 };
 
-export const getIdleGeneratorProgressPercent = (state: GameState, id: IdleGeneratorId, now: number): number => {
+export const getMainIdleLoopPhase = (state: GameState, now: number): IdleLoopPhase =>
+  getIdleLoopPhase(now, state.mainLoopLastPayoutAt, MAIN_IDLE_CYCLE_MS);
+
+export const getIdleGeneratorLoopPhase = (
+  state: GameState,
+  id: IdleGeneratorId,
+  now: number,
+): IdleLoopPhase | null => {
   if (!isIdleGeneratorUnlocked(state, id)) {
-    return 0;
+    return null;
   }
 
   const cfg = IDLE_GENERATORS[id];
-  const elapsed = Math.max(0, now - state.idleGenerators[id].lastCollectedAt);
-  return Math.min(100, ((elapsed % cfg.cycleMs) / cfg.cycleMs) * 100);
+  return getIdleLoopPhase(now, state.idleGenerators[id].lastCollectedAt, cfg.cycleMs);
 };
+
+export const getMainIdleProgressPercent = (state: GameState, now: number): number =>
+  getMainIdleLoopPhase(state, now).progressPercent;
+
+export const getIdleGeneratorProgressPercent = (state: GameState, id: IdleGeneratorId, now: number): number =>
+  getIdleGeneratorLoopPhase(state, id, now)?.progressPercent ?? 0;
 
 export const getGeneratorUpgradeCost = (state: GameState, id: IdleGeneratorId): number => {
   const cfg = IDLE_GENERATORS[id];

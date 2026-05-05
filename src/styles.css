@@ -610,6 +610,14 @@ h2 {
   line-height: 0.95;
 }
 
+.income-cycle-ring.income-cycle-ring--phase-snap {
+  transition: none !important;
+}
+
+.income-cycle-card.just-paid {
+  animation: generator-loop-payout-glow 380ms ease-out;
+}
+
 .income-cycle-card.is-completing {
   animation: income-cycle-complete 720ms ease-in-out infinite;
 }
@@ -666,16 +674,54 @@ h2 {
   overflow: hidden;
 }
 
-.generator-loop-track span {
+.generator-loop-track .generator-loop-fill {
   height: 100%;
   display: block;
   border-radius: inherit;
   background-size: 180% 100%;
   animation: loop-fill-flow 2.4s linear infinite;
+}
+
+.generator-loop-fill--smooth {
   transition: width 420ms linear;
 }
 
-.generator-loop-card.basic .generator-loop-track span {
+.generator-loop-fill--instant {
+  transition: none;
+}
+
+.generator-loop-track.just-paid {
+  animation: generator-loop-payout-glow 380ms ease-out;
+}
+
+@keyframes generator-loop-payout-glow {
+  0% {
+    filter: brightness(1);
+    border-color: var(--eggflip-border-color);
+    box-shadow:
+      inset 0 2px 0 rgba(19, 34, 61, 0.1),
+      0 0 0 0 rgba(255, 237, 143, 0);
+  }
+
+  38% {
+    filter: brightness(1.12);
+    border-color: #fff59a;
+    box-shadow:
+      inset 0 2px 0 rgba(19, 34, 61, 0.08),
+      0 0 0 4px rgba(117, 255, 159, 0.42),
+      0 0 20px rgba(255, 237, 143, 0.75);
+  }
+
+  100% {
+    filter: brightness(1);
+    border-color: var(--eggflip-border-color);
+    box-shadow:
+      inset 0 2px 0 rgba(19, 34, 61, 0.1),
+      0 0 0 0 rgba(255, 237, 143, 0);
+  }
+}
+
+.generator-loop-card.basic .generator-loop-fill {
   background: linear-gradient(90deg, #75ff9f, #fff176);
   box-shadow: 0 0 10px rgba(117, 255, 159, 0.36);
 }
@@ -686,7 +732,7 @@ h2 {
     linear-gradient(145deg, #eaf8ff, #dff0ff);
 }
 
-.generator-loop-card.advanced .generator-loop-track span {
+.generator-loop-card.advanced .generator-loop-fill {
   background: linear-gradient(90deg, #70d6ff, #b8e6ff);
   box-shadow: 0 0 8px rgba(112, 214, 255, 0.32);
 }
@@ -697,7 +743,7 @@ h2 {
     linear-gradient(145deg, #f4efff, #ffe8f3);
 }
 
-.generator-loop-card.elite .generator-loop-track span {
+.generator-loop-card.elite .generator-loop-fill {
   background: linear-gradient(90deg, #c79cff, #ff7faf);
   box-shadow: 0 0 10px rgba(159, 92, 255, 0.32);
 }
@@ -708,7 +754,7 @@ h2 {
     linear-gradient(145deg, #eaf8ff, #dff0ff);
 }
 
-.generator-loop-card.rare .generator-loop-track span {
+.generator-loop-card.rare .generator-loop-fill {
   background: linear-gradient(90deg, #70d6ff, #b8e6ff);
   box-shadow: 0 0 8px rgba(112, 214, 255, 0.32);
 }
@@ -719,7 +765,7 @@ h2 {
     linear-gradient(145deg, #f4efff, #ffe8f3);
 }
 
-.generator-loop-card.epic .generator-loop-track span {
+.generator-loop-card.epic .generator-loop-fill {
   background: linear-gradient(90deg, #c79cff, #ff7faf);
   box-shadow: 0 0 10px rgba(159, 92, 255, 0.32);
 }
