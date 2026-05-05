@@ -11,6 +11,7 @@ import {
 import type { DailyRewardState, EggType, GameState, PrestigeUpgrades, ReferralMilestoneId, Tier } from './types';
 
 const STORAGE_KEY = 'eggflip-game-state-v1';
+const TEMP_DEV_RESET_GAME_STATE = true;
 
 const defaultEggs = (): Record<EggType, number> => ({
   free: STARTING_FREE_EGGS,
@@ -61,6 +62,11 @@ export const createInitialGameState = (now = Date.now()): GameState => ({
 
 export const loadGameState = (): GameState => {
   if (typeof window === 'undefined') {
+    return createInitialGameState();
+  }
+
+  if (TEMP_DEV_RESET_GAME_STATE) {
+    // TEMP DEV RESET
     return createInitialGameState();
   }
 
