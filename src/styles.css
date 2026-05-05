@@ -528,6 +528,195 @@ h2 {
   line-height: 0.95;
 }
 
+.income-cycle-card.is-completing {
+  animation: income-cycle-complete 720ms ease-in-out infinite;
+}
+
+.generator-loop-grid,
+.progress-goal-grid {
+  display: grid;
+  gap: 7px;
+}
+
+.generator-loop-card {
+  padding: 8px 10px;
+  display: grid;
+  gap: 5px;
+  border: 3px solid var(--eggflip-border-color);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.16)),
+    linear-gradient(145deg, #effbff, #fff7c7);
+  box-shadow: 0 3px 0 var(--eggflip-border-color), inset 0 2px 0 rgba(255, 255, 255, 0.72);
+  overflow: hidden;
+}
+
+.generator-loop-header,
+.generator-loop-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.generator-loop-header span,
+.generator-loop-footer span {
+  color: #405d77;
+  font-size: 10px;
+  font-weight: 1000;
+}
+
+.generator-loop-header strong,
+.generator-loop-footer strong {
+  color: var(--eggflip-border-color);
+  font-size: 11px;
+  font-weight: 1000;
+  white-space: nowrap;
+}
+
+.generator-loop-track {
+  height: 13px;
+  padding: 2px;
+  border: 2px solid var(--eggflip-border-color);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow: inset 0 2px 0 rgba(19, 34, 61, 0.1);
+  overflow: hidden;
+}
+
+.generator-loop-track span {
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  background-size: 180% 100%;
+  animation: loop-fill-flow 2.4s linear infinite;
+  transition: width 420ms linear;
+}
+
+.generator-loop-card.basic .generator-loop-track span {
+  background: linear-gradient(90deg, #75ff9f, #fff176);
+  box-shadow: 0 0 10px rgba(117, 255, 159, 0.36);
+}
+
+.generator-loop-card.rare {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(226, 244, 255, 0.18)),
+    linear-gradient(145deg, #eaf8ff, #dff0ff);
+}
+
+.generator-loop-card.rare .generator-loop-track span {
+  background: linear-gradient(90deg, #70d6ff, #b8e6ff);
+  box-shadow: 0 0 8px rgba(112, 214, 255, 0.32);
+}
+
+.generator-loop-card.epic {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(241, 230, 255, 0.16)),
+    linear-gradient(145deg, #f4efff, #ffe8f3);
+}
+
+.generator-loop-card.epic .generator-loop-track span {
+  background: linear-gradient(90deg, #c79cff, #ff7faf);
+  box-shadow: 0 0 10px rgba(159, 92, 255, 0.32);
+}
+
+.egg-bonus-card {
+  min-height: 58px;
+  padding: 7px 8px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px 74px;
+  align-items: center;
+  gap: 8px;
+  border: 3px solid var(--eggflip-border-color);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.12)),
+    linear-gradient(145deg, #fff0b8, #ffd4e4);
+  box-shadow: 0 3px 0 var(--eggflip-border-color), inset 0 2px 0 rgba(255, 255, 255, 0.7);
+}
+
+.egg-bonus-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.egg-bonus-copy span,
+.egg-bonus-copy small {
+  color: #607083;
+  font-size: 10px;
+  font-weight: 1000;
+  line-height: 1.05;
+}
+
+.egg-bonus-copy strong {
+  color: var(--eggflip-border-color);
+  font-size: 14px;
+  font-weight: 1000;
+  line-height: 1;
+}
+
+.egg-bonus-asset {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #fff9d6, #ffc947);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.72);
+}
+
+.egg-bonus-image {
+  width: 74%;
+  height: 74%;
+  display: block;
+}
+
+.egg-bonus-action {
+  min-height: 36px;
+  padding: 0 8px;
+  border: 3px solid var(--eggflip-border-color);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ff9cc5, #ff4f9a);
+  box-shadow: 0 3px 0 var(--eggflip-border-color), inset 0 2px 0 rgba(255, 255, 255, 0.56);
+  color: var(--eggflip-border-color);
+  font-size: 12px;
+  font-weight: 1000;
+}
+
+.progress-goal-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.progress-goal-grid .loop-progress-row {
+  padding: 7px 8px;
+  gap: 5px;
+}
+
+.progress-goal-grid .loop-progress-header {
+  gap: 5px;
+}
+
+.progress-goal-grid .loop-progress-name {
+  font-size: 10px;
+}
+
+.progress-goal-grid .loop-progress-status {
+  font-size: 9px;
+}
+
+.progress-goal-grid .loop-progress-track,
+.progress-goal-grid .segmented-progress-track {
+  height: 12px;
+  padding: 1px;
+}
+
+.essence-access.compact {
+  min-height: 48px;
+  padding: 8px 10px;
+  grid-template-columns: auto auto 1fr;
+}
+
 .idle-loop-dashboard {
   display: grid;
   gap: 12px;
@@ -2669,6 +2858,25 @@ button:disabled {
   }
 }
 
+@keyframes income-cycle-complete {
+  0%,
+  100% {
+    filter: brightness(1);
+    box-shadow:
+      0 5px 0 var(--eggflip-border-color),
+      0 0 20px rgba(117, 255, 159, 0.18),
+      inset 0 2px 0 rgba(255, 255, 255, 0.78);
+  }
+  50% {
+    filter: brightness(1.08);
+    box-shadow:
+      0 5px 0 var(--eggflip-border-color),
+      0 0 24px rgba(117, 255, 159, 0.34),
+      0 0 30px rgba(184, 255, 106, 0.18),
+      inset 0 2px 0 rgba(255, 255, 255, 0.82);
+  }
+}
+
 @keyframes loop-track-flow {
   from {
     background-position: 0 0;
@@ -4110,5 +4318,50 @@ button:disabled {
   .segmented-progress-track {
     height: 14px !important;
     padding: 2px !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .income-cycle-card {
+    min-height: 170px !important;
+    padding: 12px 12px !important;
+    grid-template-columns: 132px minmax(0, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  .income-cycle-ring {
+    width: 124px !important;
+  }
+
+  .income-cycle-core strong {
+    font-size: 23px !important;
+  }
+
+  .income-cycle-meta strong {
+    font-size: 26px !important;
+  }
+
+  .generator-loop-grid {
+    gap: 8px !important;
+  }
+
+  .generator-loop-card {
+    min-height: 62px !important;
+    padding: 9px 10px !important;
+    gap: 6px !important;
+  }
+
+  .generator-loop-track {
+    height: 15px !important;
+    padding: 2px !important;
+  }
+
+  .egg-bonus-card {
+    min-height: 62px !important;
+  }
+
+  .progress-goal-grid .loop-progress-row {
+    min-height: 62px !important;
+    padding: 8px !important;
   }
 }
