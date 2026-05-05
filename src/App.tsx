@@ -957,7 +957,8 @@ function ProgressLoop({ label, percent, status, variant }: ProgressLoopProps) {
   const segments = Array.from({ length: 8 }, (_, index) => index);
   const activeSegments = Math.ceil((normalizedPercent / 100) * segments.length);
   const isComplete = normalizedPercent >= 100;
-  const statusText = isComplete ? status.replace(/!$/, '') : status;
+  const isHot = normalizedPercent > 80 && !isComplete;
+  const statusText = isComplete && !status.endsWith('!') ? `${status}!` : status;
 
   useEffect(() => {
     if (normalizedPercent > previousPercentRef.current) {
@@ -982,7 +983,7 @@ function ProgressLoop({ label, percent, status, variant }: ProgressLoopProps) {
   }, [normalizedPercent]);
 
   return (
-    <div className={`loop-progress-row ${variant} ${isComplete ? 'complete' : ''} ${isGrowing ? 'is-growing' : ''}`}>
+    <div className={`loop-progress-row ${variant} ${isHot ? 'is-hot' : ''} ${isComplete ? 'complete' : ''} ${isGrowing ? 'is-growing' : ''}`}>
       <div className="loop-progress-header">
         <span className="loop-progress-name">{label}</span>
         <strong className="loop-progress-status">

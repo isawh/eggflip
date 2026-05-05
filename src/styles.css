@@ -455,8 +455,17 @@ h2 {
   animation: progress-grow-pop 520ms ease-out;
 }
 
+.loop-progress-row.is-growing .loop-progress-track span,
+.loop-progress-row.is-growing .segmented-progress-track span.filled {
+  animation: loop-fill-expand 520ms ease-out;
+}
+
+.loop-progress-row.is-hot {
+  animation: loop-hot-pulse 1.6s ease-in-out infinite;
+}
+
 .loop-progress-row.complete {
-  animation: progress-complete-pulse 620ms ease-out;
+  animation: progress-complete-pulse 1.28s ease-in-out infinite;
 }
 
 .loop-progress-header {
@@ -499,6 +508,16 @@ h2 {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
+.loop-progress-row.is-hot .loop-progress-status,
+.loop-progress-row.complete .loop-progress-status {
+  filter: brightness(1.12);
+}
+
+.loop-progress-row.complete .loop-progress-status {
+  color: #ff2f86;
+  text-shadow: 0 0 10px rgba(255, 127, 175, 0.46);
+}
+
 .loop-progress-track,
 .segmented-progress-track {
   position: relative;
@@ -534,8 +553,11 @@ h2 {
   display: block;
   border-radius: inherit;
   background: linear-gradient(90deg, #70d6ff, #ff7faf);
+  background-size: 180% 100%;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.62);
   overflow: hidden;
+  transform-origin: left center;
+  animation: loop-fill-flow 2.4s linear infinite;
   transition: width 720ms cubic-bezier(0.2, 0.8, 0.2, 1), filter 260ms ease, box-shadow 260ms ease;
 }
 
@@ -566,7 +588,9 @@ h2 {
 
 .segmented-progress-track span.filled {
   background: linear-gradient(180deg, #fffbd5, #ffd65e);
+  background-size: 100% 180%;
   box-shadow: 0 0 8px rgba(255, 216, 106, 0.45);
+  animation: segment-fill-flow 2.2s ease-in-out infinite;
 }
 
 .segmented-progress-track span.filled::after {
@@ -579,6 +603,7 @@ h2 {
 
 .loop-progress-row.egg .loop-progress-track span {
   background: linear-gradient(90deg, #ff4f9a, #ff9cc5 46%, #fff176);
+  background-size: 190% 100%;
   box-shadow:
     0 0 12px rgba(255, 79, 154, 0.54),
     0 0 18px rgba(255, 241, 118, 0.34),
@@ -597,7 +622,7 @@ h2 {
 }
 
 .loop-progress-row.egg.complete .loop-progress-track {
-  box-shadow: 0 0 16px rgba(255, 127, 175, 0.5), inset 0 2px 0 rgba(19, 34, 61, 0.12);
+  box-shadow: 0 0 22px rgba(255, 79, 154, 0.74), 0 0 28px rgba(255, 241, 118, 0.42), inset 0 2px 0 rgba(19, 34, 61, 0.12);
 }
 
 .loop-progress-row.egg.complete .loop-progress-track span {
@@ -616,6 +641,7 @@ h2 {
 
 .loop-progress-row.tier .loop-progress-track span {
   background: linear-gradient(90deg, #70d6ff, #95e7ff);
+  background-size: 160% 100%;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.68);
 }
 
@@ -627,6 +653,7 @@ h2 {
 
 .loop-progress-row.income .segmented-progress-track span.filled {
   background: linear-gradient(180deg, #91ffb8, #fff176);
+  background-size: 100% 190%;
   box-shadow: 0 0 10px rgba(145, 255, 184, 0.42), 0 0 14px rgba(255, 241, 118, 0.32);
 }
 
@@ -644,10 +671,24 @@ h2 {
 
 .loop-progress-row.essence .loop-progress-track span {
   background: linear-gradient(90deg, #cdb4ff, #e7d3ff);
+  background-size: 150% 100%;
   box-shadow: 0 0 10px rgba(159, 92, 255, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
-.loop-progress-row.complete .loop-progress-header strong {
+.loop-progress-row.is-hot .loop-progress-track,
+.loop-progress-row.is-hot .segmented-progress-track {
+  box-shadow: 0 0 12px rgba(255, 216, 106, 0.28), inset 0 2px 0 rgba(19, 34, 61, 0.12);
+}
+
+.loop-progress-row.egg.is-hot .loop-progress-track {
+  box-shadow: 0 0 18px rgba(255, 79, 154, 0.48), inset 0 2px 0 rgba(19, 34, 61, 0.12);
+}
+
+.loop-progress-row.essence.is-hot .loop-progress-track {
+  box-shadow: 0 0 10px rgba(159, 92, 255, 0.2), inset 0 2px 0 rgba(19, 34, 61, 0.12);
+}
+
+.loop-progress-row.complete .loop-progress-status {
   filter: brightness(1.08);
   text-shadow: 0 0 8px rgba(255, 216, 106, 0.36);
 }
@@ -2483,6 +2524,52 @@ button:disabled {
   }
   to {
     background-position: 42px 0;
+  }
+}
+
+@keyframes loop-fill-flow {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: 180% 50%;
+  }
+}
+
+@keyframes segment-fill-flow {
+  0%,
+  100% {
+    filter: brightness(1);
+    background-position: 50% 0%;
+  }
+  50% {
+    filter: brightness(1.08);
+    background-position: 50% 100%;
+  }
+}
+
+@keyframes loop-fill-expand {
+  0% {
+    transform: scaleX(1);
+    filter: brightness(1);
+  }
+  42% {
+    transform: scaleX(1.018);
+    filter: brightness(1.1);
+  }
+  100% {
+    transform: scaleX(1);
+    filter: brightness(1);
+  }
+}
+
+@keyframes loop-hot-pulse {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.06);
   }
 }
 
