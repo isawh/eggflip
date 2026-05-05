@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
 import { AssetImage } from './components/AssetImage';
 import { BottomNav } from './components/BottomNav';
 import { CreatureCard } from './components/CreatureCard';
@@ -852,6 +852,8 @@ function HomeScreen({
         </button>
       </div>
 
+      <IncomeCycleLoop now={now} totalIncome={totalIncome} />
+
       <div className="cooldown-card">
         <div>
           <span className="status-title">Current egg</span>
@@ -906,6 +908,38 @@ interface LoopProgress {
 interface ProgressLoopProps extends LoopProgress {
   label: string;
   variant: 'egg' | 'tier' | 'income' | 'essence';
+}
+
+interface IncomeCycleLoopProps {
+  now: number;
+  totalIncome: number;
+}
+
+const INCOME_CYCLE_MS = 4_000;
+
+function IncomeCycleLoop({ now, totalIncome }: IncomeCycleLoopProps) {
+  const cycleProgress = ((now % INCOME_CYCLE_MS) / INCOME_CYCLE_MS) * 100;
+  const cycleCoins = totalIncome * (INCOME_CYCLE_MS / 60_000);
+  const cycleStyle = {
+    '--cycle-progress': `${cycleProgress * 3.6}deg`,
+  } as CSSProperties;
+
+  return (
+    <div className="income-cycle-card" aria-label="Income cycle">
+      <div className="income-cycle-ring" style={cycleStyle}>
+        <div className="income-cycle-core">
+          <span>Cycle</span>
+          <strong>+{formatNumber(cycleCoins)}</strong>
+          <small>coins</small>
+        </div>
+      </div>
+      <div className="income-cycle-meta">
+        <span>Income Loop</span>
+        <strong>{formatNumber(totalIncome)}/min</strong>
+        <small>Auto cycle refills every {INCOME_CYCLE_MS / 1000}s</small>
+      </div>
+    </div>
+  );
 }
 
 function ProgressLoop({ label, percent, status, variant }: ProgressLoopProps) {
