@@ -1,6 +1,6 @@
 import type { CreatureDefinition, DailyReward, EggType, IdleGeneratorId, PrestigeUpgradeId, Rarity, ReferralMilestone, Tier } from './types';
 
-export const GAME_TITLE = 'EggFlip';
+export const GAME_TITLE = 'Idle Loop';
 
 export const STARTING_COINS = 0;
 export const STARTING_GEMS = 20;

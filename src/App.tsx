@@ -154,6 +154,9 @@ function SyncedLinearCycleBar({ cycleStartAt, cycleDurationMs, now, active, aria
 }
 
 function App() {
+  /** Legacy creature grid on Generators tab starts collapsed unless opened from More → Creature vault. */
+  const [generatorsVaultOpen, setGeneratorsVaultOpen] = useState(false);
+
   const [sessionStart] = useState<SessionStart>(() => {
     const current = Date.now();
     const referralBonus = applyInviteeReferralBonus(loadGameState());
@@ -282,6 +285,13 @@ function App() {
   const totalIncome = getTotalIncomePerMinute(gameState, now);
   const referralLink = getReferralLink(gameState.referralCode);
   const telegramShareUrl = getTelegramShareUrl(referralLink);
+
+  const navigateFromBottomNav = (screen: Screen) => {
+    if (screen === 'collection') {
+      setGeneratorsVaultOpen(false);
+    }
+    setActiveScreen(screen);
+  };
 
   const updateGameState = (updater: (state: GameState) => GameState) => {
     setGameState((state) => applyTierProgression(updater(applyPassiveIncome(state, Date.now()))));
@@ -604,9 +614,13 @@ function App() {
           {activeScreen === 'collection' && (
             <CollectionScreen
               creatures={gameState.creatures}
+              gameState={gameState}
               maxCreatureSlots={gameState.maxCreatureSlots}
-              selectedUid={gameState.selectedCreatureUid}
+              now={now}
               onSelect={selectCreature}
+              onVaultOpenChange={setGeneratorsVaultOpen}
+              selectedUid={gameState.selectedCreatureUid}
+              vaultOpen={generatorsVaultOpen}
             />
           )}
           {activeScreen === 'upgrade' && (
@@ -632,8 +646,13 @@ function App() {
           )}
           {activeScreen === 'more' && (
             <MoreScreen
-              soundEnabled={soundEnabled}
               onNavigate={setActiveScreen}
+              onOpenGeneratorsVault={() => {
+                setGeneratorsVaultOpen(true);
+                setActiveScreen('collection');
+              }}
+              onOpenHatch={() => setActiveScreen('hatch')}
+              soundEnabled={soundEnabled}
               onToggleSound={toggleSound}
             />
           )}
@@ -660,7 +679,7 @@ function App() {
           )}
         </section>
 
-        <BottomNav activeScreen={activeScreen} onNavigate={setActiveScreen} />
+        <BottomNav activeScreen={activeScreen} onNavigate={navigateFromBottomNav} />
       </main>
       {offlineCoins > 0 && (
         <div className="offline-backdrop" role="dialog" aria-modal="true" aria-labelledby="offline-title">
@@ -764,7 +783,7 @@ const getReferralLink = (referralCode: string): string =>
   `https://t.me/EggFlipBot/app?start=${encodeURIComponent(referralCode)}`;
 
 const getTelegramShareUrl = (referralLink: string): string => {
-  const text = `🐣 Play EggFlip and get free rewards!\n${referralLink}`;
+  const text = `Play ${GAME_TITLE} — idle loops & rewards!\n${referralLink}`;
   return `https://t.me/share/url?text=${encodeURIComponent(text)}`;
 };
 
@@ -778,9 +797,9 @@ function InvitePopup({ onCopy, onShare }: InvitePopupProps) {
     <div className="invite-popup-backdrop" role="dialog" aria-modal="true" aria-labelledby="invite-popup-title">
       <div className="invite-popup-modal">
         <h2 id="invite-popup-title">Invite friends 🎁</h2>
-        <p>Get free eggs</p>
+        <p>Extra gems, boosts, and rewards</p>
         <div className="invite-benefits">
-          <span>1 friend → 2 eggs</span>
+          <span>1 friend → starter bonus</span>
           <span>3 friends → 200 gems</span>
           <span>5 friends → x2 income</span>
         </div>
@@ -1236,54 +1255,111 @@ function HatchScreen({ gameState, hatchResult, isHatching, onHatch, onCollection
       </div>
 
       <button className="secondary-action" onClick={onShop} type="button">
-        Buy More Eggs
+        Buy supplies
       </button>
     </div>
   );
 }
 
 interface CollectionScreenProps {
+  gameState: GameState;
+  now: number;
+  vaultOpen: boolean;
+  onVaultOpenChange: (open: boolean) => void;
   creatures: OwnedCreature[];
   maxCreatureSlots: number;
   selectedUid: string | null;
   onSelect: (creature: OwnedCreature, goToUpgrade?: boolean) => void;
 }
 
-function CollectionScreen({ creatures, maxCreatureSlots, selectedUid, onSelect }: CollectionScreenProps) {
+function CollectionScreen({
+  gameState,
+  now,
+  vaultOpen,
+  onVaultOpenChange,
+  creatures,
+  maxCreatureSlots,
+  selectedUid,
+  onSelect,
+}: CollectionScreenProps) {
   const groupedCreatures = getCreatureCollectionGroups(creatures, maxCreatureSlots);
   const activeCopies = Math.min(creatures.length, maxCreatureSlots);
 
-  if (creatures.length === 0) {
-    return (
-      <div className="screen-content empty-screen">
-        <div className="empty-emoji">🥚</div>
-        <h2>No creatures yet</h2>
-        <p>Hatch your first egg to start earning passive coins.</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="screen-content collection-screen">
+    <div className="screen-content collection-screen generators-screen">
       <div className="section-heading">
-        <h2>Collection</h2>
-        <span>{activeCopies}/{maxCreatureSlots} active · {groupedCreatures.length} types</span>
+        <h2>Generators</h2>
+        <span>Tier {gameState.playerTier} · manage upgrades on Home</span>
       </div>
-      <div className="collection-grid">
-        {groupedCreatures.map((group) => (
-          <CreatureCard
-            activeCount={group.activeCount}
-            creature={group.representative}
-            duplicateCount={group.duplicateCount}
-            incomePerMinute={group.activeIncomePerMinute}
-            isActive={group.activeCount > 0}
-            key={group.creatureId}
-            onSelect={() => onSelect(group.representative, true)}
-            selected={group.copies.some((creature) => creature.uid === selectedUid)}
-            storedCount={group.storedCount}
-          />
-        ))}
+      <p className="generators-lede">Each loop pays on a fixed timer. Higher Tier unlocks stronger generator layers.</p>
+
+      <div className="generator-status-panel" aria-label="Generator status">
+        {IDLE_GENERATOR_ORDER.map((id) => {
+          const cfg = IDLE_GENERATORS[id];
+          const unlocked = isIdleGeneratorUnlocked(gameState, id);
+          const level = gameState.idleGenerators[id].level;
+          const phase = getIdleGeneratorLoopPhase(gameState, id, now);
+          const perCycle = unlocked ? getIdleGeneratorCoinsPerCycle(gameState, id, now) : 0;
+
+          return (
+            <div className={`generator-status-row ${unlocked ? 'unlocked' : 'locked'}`} key={id}>
+              <div className="generator-status-title">
+                <strong>{cfg.title}</strong>
+                <span>Lv {level}</span>
+              </div>
+              <div className="generator-status-detail">
+                {unlocked && phase
+                  ? `+${formatNumber(perCycle)} / ${cfg.cycleMs / 1000}s · next in ${phase.secRemaining}s`
+                  : `Unlock at Tier ${cfg.unlockTier}`}
+              </div>
+            </div>
+          );
+        })}
       </div>
+
+      <button
+        className="vault-toggle-btn"
+        onClick={() => onVaultOpenChange(!vaultOpen)}
+        type="button"
+      >
+        {vaultOpen ? 'Hide creature vault' : 'Show creature vault'}
+        {!vaultOpen && creatures.length > 0 ? ` · ${creatures.length} saved` : ''}
+      </button>
+
+      {vaultOpen && (
+        <div className="creature-vault-section">
+          <div className="section-heading subheading">
+            <h3>Creature vault</h3>
+            <span>Legacy · does not drive main loops</span>
+          </div>
+          {creatures.length === 0 ? (
+            <p className="vault-empty-hint">
+              Empty for now. Use <strong>Hatch lab</strong> in More, or buy supplies in the Shop.
+            </p>
+          ) : (
+            <>
+              <p className="vault-roster-meta">
+                {activeCopies}/{maxCreatureSlots} active · {groupedCreatures.length} types
+              </p>
+              <div className="collection-grid">
+                {groupedCreatures.map((group) => (
+                  <CreatureCard
+                    activeCount={group.activeCount}
+                    creature={group.representative}
+                    duplicateCount={group.duplicateCount}
+                    incomePerMinute={group.activeIncomePerMinute}
+                    isActive={group.activeCount > 0}
+                    key={group.creatureId}
+                    onSelect={() => onSelect(group.representative, true)}
+                    selected={group.copies.some((creature) => creature.uid === selectedUid)}
+                    storedCount={group.storedCount}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -1346,9 +1422,9 @@ function UpgradeScreen({ creature, coins, allCreatures, upgradeBurst, onUpgrade,
   if (!creature) {
     return (
       <div className="screen-content empty-screen">
-        <div className="empty-emoji">🧺</div>
-        <h2>Select a creature</h2>
-        <p>Pick a creature from your collection before upgrading.</p>
+        <div className="empty-emoji">⚙️</div>
+        <h2>No creature selected</h2>
+        <p>Open the creature vault under Generators, then pick a companion to upgrade.</p>
       </div>
     );
   }
@@ -1575,9 +1651,11 @@ interface MoreScreenProps {
   soundEnabled: boolean;
   onNavigate: (screen: Screen) => void;
   onToggleSound: () => void;
+  onOpenHatch: () => void;
+  onOpenGeneratorsVault: () => void;
 }
 
-function MoreScreen({ soundEnabled, onNavigate, onToggleSound }: MoreScreenProps) {
+function MoreScreen({ soundEnabled, onNavigate, onToggleSound, onOpenHatch, onOpenGeneratorsVault }: MoreScreenProps) {
   return (
     <div className="screen-content more-screen">
       <div className="section-heading">
@@ -1596,6 +1674,16 @@ function MoreScreen({ soundEnabled, onNavigate, onToggleSound }: MoreScreenProps
         <button className="more-card invite" onClick={() => onNavigate('referral')} type="button">
           <span aria-hidden="true">🎁</span>
           <strong>Invite</strong>
+        </button>
+        <button className="more-card hatch-secondary" onClick={onOpenHatch} type="button">
+          <span aria-hidden="true">🧪</span>
+          <strong>Hatch lab</strong>
+          <small className="more-card-hint">Side content</small>
+        </button>
+        <button className="more-card vault-secondary" onClick={onOpenGeneratorsVault} type="button">
+          <span aria-hidden="true">📦</span>
+          <strong>Creature vault</strong>
+          <small className="more-card-hint">Legacy roster</small>
         </button>
         <button className={`more-card sound ${soundEnabled ? 'active' : ''}`} onClick={onToggleSound} type="button">
           <span aria-hidden="true">{soundEnabled ? '🔊' : '🔇'}</span>
@@ -1650,7 +1738,7 @@ function ReferralScreen({
           🎁
         </span>
         <h2>Invite Friends</h2>
-        <p>Earn premium eggs, gems, boosts, and future founder rewards as friends join EggFlip.</p>
+        <p>Earn premium supplies, gems, boosts, and future founder rewards as friends join {GAME_TITLE}.</p>
         <div className="invite-count">
           <strong>{gameState.invitedFriendsCount}</strong>
           <span>friends joined</span>

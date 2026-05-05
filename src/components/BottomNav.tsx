@@ -7,7 +7,7 @@ interface BottomNavProps {
 
 const items: Array<{ screen: Screen; label: string; icon: string }> = [
   { screen: 'home', label: 'Home', icon: '🏠' },
-  { screen: 'collection', label: 'Pets', icon: '🧺' },
+  { screen: 'collection', label: 'Generators', icon: '⚙️' },
   { screen: 'shop', label: 'Shop', icon: '🛒' },
   { screen: 'more', label: 'More', icon: '•••' },
 ];
@@ -23,7 +23,7 @@ export function BottomNav({ activeScreen, onNavigate }: BottomNavProps) {
   const activeNavScreen = getNavScreen(activeScreen);
 
   return (
-    <nav className="bottom-nav" aria-label="EggFlip navigation">
+    <nav className="bottom-nav" aria-label="Main navigation">
       {items.map((item) => (
         <button
           className={`nav-item ${activeNavScreen === item.screen ? 'active' : ''}`}

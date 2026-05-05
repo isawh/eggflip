@@ -2265,6 +2265,125 @@ button:disabled {
     linear-gradient(145deg, #a9ffcc, #41da7f);
 }
 
+.more-card-hint {
+  grid-column: 1 / -1;
+  width: 100%;
+  margin: -6px 0 0;
+  padding: 0 8px;
+  font-size: 10px;
+  font-weight: 850;
+  color: #476078;
+  line-height: 1.15;
+}
+
+.more-card.hatch-secondary,
+.more-card.vault-secondary {
+  min-height: 126px;
+}
+
+.generators-screen .generators-lede {
+  margin: 0;
+  padding: 0 2px;
+  color: #607083;
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1.35;
+}
+
+.generator-status-panel {
+  margin-top: 8px;
+  display: grid;
+  gap: 8px;
+}
+
+.generator-status-row {
+  padding: 10px 11px;
+  border: 3px solid #13223d;
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.12)),
+    linear-gradient(145deg, #eaf8ff, #fff7c7);
+  box-shadow: 0 4px 0 #13223d, inset 0 2px 0 rgba(255, 255, 255, 0.72);
+}
+
+.generator-status-row.locked {
+  opacity: 0.68;
+}
+
+.generator-status-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.generator-status-title strong {
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.generator-status-title span {
+  width: auto;
+  height: auto;
+  display: inline;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  font-size: 11px;
+  font-weight: 950;
+  color: #607083;
+}
+
+.generator-status-detail {
+  font-size: 11px;
+  font-weight: 800;
+  color: #405d77;
+  line-height: 1.25;
+}
+
+.vault-toggle-btn {
+  margin-top: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 3px solid var(--eggflip-border-color);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ffffff 0%, #dff4ff 100%);
+  box-shadow: 0 4px 0 var(--eggflip-border-color), inset 0 2px 0 rgba(255, 255, 255, 0.86);
+  font-size: 13px;
+  font-weight: 950;
+  color: #13223d;
+  cursor: pointer;
+}
+
+.creature-vault-section {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 2px dashed rgba(19, 34, 61, 0.2);
+}
+
+.generators-screen .section-heading.subheading h3 {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.1;
+  color: #13223d;
+}
+
+.generators-screen .section-heading.subheading span {
+  font-size: 10px;
+}
+
+.vault-empty-hint,
+.vault-roster-meta {
+  font-size: 11px;
+  font-weight: 800;
+  color: #607083;
+  line-height: 1.35;
+  margin: 0 0 8px;
+}
+
 .invite-card {
   padding: 18px;
   text-align: center;
