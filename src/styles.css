@@ -3816,7 +3816,7 @@ button:disabled {
     align-items: center !important;
     justify-content: space-between !important;
     height: auto !important;
-    min-height: 112px !important;
+    min-height: 126px !important;
     max-height: none !important;
     padding: 5px 10px 7px !important;
     gap: 3px !important;
@@ -4014,9 +4014,9 @@ button:disabled {
   }
 
   .home-hero {
-    height: 116px !important;
-    min-height: 116px !important;
-    max-height: 116px !important;
+    height: 130px !important;
+    min-height: 130px !important;
+    max-height: 130px !important;
     padding: 5px 10px 7px !important;
     gap: 3px !important;
     overflow: hidden !important;
