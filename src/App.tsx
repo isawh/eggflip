@@ -886,27 +886,6 @@ function HomeScreen({
         </button>
       </div>
 
-      <div className="loop-progress-card" aria-label="Progress loops">
-        <ProgressLoop
-          label="Egg progress"
-          percent={eggLoopProgress.percent}
-          status={eggLoopProgress.status}
-          variant="egg"
-        />
-        <ProgressLoop
-          label="Tier progress"
-          percent={tierProgress.progressPercent}
-          status={getTierLoopStatus(tierProgress.progressPercent, tierProgress.nextTier)}
-          variant="tier"
-        />
-        <ProgressLoop
-          label="Income progress"
-          percent={incomeLoopProgress.percent}
-          status={incomeLoopProgress.status}
-          variant="income"
-        />
-      </div>
-
       <div className="tier-progress-card">
         <div className="tier-progress-header">
           <div>
@@ -937,6 +916,28 @@ function HomeScreen({
         <button onClick={onClaimFreeEgg} type="button">
           {freeReady ? 'Claim' : 'Wait'}
         </button>
+      </div>
+
+      <div className="loop-progress-card" aria-label="Progress loops">
+        <div className="loop-progress-title">Progress Loops</div>
+        <ProgressLoop
+          label="Egg progress"
+          percent={eggLoopProgress.percent}
+          status={eggLoopProgress.status}
+          variant="egg"
+        />
+        <ProgressLoop
+          label="Tier progress"
+          percent={tierProgress.progressPercent}
+          status={getTierLoopStatus(tierProgress.progressPercent, tierProgress.nextTier)}
+          variant="tier"
+        />
+        <ProgressLoop
+          label="Income progress"
+          percent={incomeLoopProgress.percent}
+          status={incomeLoopProgress.status}
+          variant="income"
+        />
       </div>
 
       {showEssenceAccess && (
