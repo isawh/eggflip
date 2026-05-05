@@ -397,10 +397,13 @@ h2 {
   gap: 9px;
   border: 3px solid var(--eggflip-border-color);
   border-radius: 8px;
+  max-width: 100%;
+  box-sizing: border-box;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(255, 255, 255, 0.18)),
     linear-gradient(145deg, #e8fbff, #fff0b8);
   box-shadow: 0 5px 0 var(--eggflip-border-color), inset 0 2px 0 rgba(255, 255, 255, 0.76);
+  transform-origin: center;
 }
 
 .loop-progress-title {
@@ -419,6 +422,8 @@ h2 {
 .idle-loop-dashboard {
   display: grid;
   gap: 12px;
+  padding-inline: 2px;
+  overflow: hidden;
 }
 
 .loop-progress-row {
@@ -436,6 +441,8 @@ h2 {
     0 4px 0 var(--eggflip-border-color),
     0 8px 14px rgba(19, 34, 61, 0.12),
     inset 0 2px 0 rgba(255, 255, 255, 0.78);
+  max-width: 100%;
+  box-sizing: border-box;
   overflow: hidden;
   transform-origin: center;
 }
@@ -2586,41 +2593,68 @@ button:disabled {
   0%,
   100% {
     filter: brightness(1);
-    transform: translateY(0);
+    box-shadow:
+      0 5px 0 var(--eggflip-border-color),
+      0 0 18px rgba(255, 127, 175, 0.22),
+      inset 0 2px 0 rgba(255, 255, 255, 0.82);
   }
   50% {
     filter: brightness(1.08);
-    transform: translateY(-1px);
+    box-shadow:
+      0 5px 0 var(--eggflip-border-color),
+      0 0 20px rgba(255, 127, 175, 0.34),
+      0 0 28px rgba(255, 241, 118, 0.18),
+      inset 0 2px 0 rgba(255, 255, 255, 0.82);
   }
 }
 
 @keyframes progress-grow-pop {
   0% {
-    transform: scale(1);
     filter: brightness(1);
+    box-shadow:
+      0 4px 0 var(--eggflip-border-color),
+      0 8px 14px rgba(19, 34, 61, 0.12),
+      inset 0 2px 0 rgba(255, 255, 255, 0.78);
   }
   42% {
-    transform: scale(1.018);
     filter: brightness(1.08);
+    box-shadow:
+      0 4px 0 var(--eggflip-border-color),
+      0 0 14px rgba(255, 216, 106, 0.26),
+      0 8px 14px rgba(19, 34, 61, 0.12),
+      inset 0 2px 0 rgba(255, 255, 255, 0.78);
   }
   100% {
-    transform: scale(1);
     filter: brightness(1);
+    box-shadow:
+      0 4px 0 var(--eggflip-border-color),
+      0 8px 14px rgba(19, 34, 61, 0.12),
+      inset 0 2px 0 rgba(255, 255, 255, 0.78);
   }
 }
 
 @keyframes progress-complete-pulse {
   0% {
-    transform: scale(1);
     filter: brightness(1);
+    box-shadow:
+      0 4px 0 var(--eggflip-border-color),
+      0 8px 14px rgba(19, 34, 61, 0.12),
+      inset 0 2px 0 rgba(255, 255, 255, 0.78);
   }
   48% {
-    transform: scale(1.025);
     filter: brightness(1.12);
+    box-shadow:
+      0 4px 0 var(--eggflip-border-color),
+      0 0 18px rgba(255, 216, 106, 0.34),
+      0 0 24px rgba(112, 214, 255, 0.18),
+      inset 0 2px 0 rgba(255, 255, 255, 0.82);
   }
   100% {
-    transform: scale(1);
     filter: brightness(1);
+    box-shadow:
+      0 4px 0 var(--eggflip-border-color),
+      0 8px 14px rgba(19, 34, 61, 0.12),
+      inset 0 2px 0 rgba(255, 255, 255, 0.78);
   }
 }
 
@@ -3634,8 +3668,10 @@ button:disabled {
     width: 100% !important;
     min-width: 0 !important;
     max-width: 100% !important;
+    box-sizing: border-box !important;
     margin: 0 !important;
     clear: none !important;
+    transform-origin: center !important;
   }
 
   .home-hero {
@@ -3848,7 +3884,7 @@ button:disabled {
     box-shadow:
       0 3px 0 var(--eggflip-border-color),
       0 6px 10px rgba(19, 34, 61, 0.1),
-      inset 0 2px 0 rgba(255, 255, 255, 0.72) !important;
+      inset 0 2px 0 rgba(255, 255, 255, 0.72);
   }
 
   .loop-progress-row.egg {
