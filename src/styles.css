@@ -601,8 +601,33 @@ h2 {
 
 .home-stats--coin-only {
   grid-template-columns: 1fr;
+  width: 100%;
   max-width: 220px;
   margin-inline: auto;
+  justify-items: stretch;
+}
+
+.home-stats--coin-only .stat-pill {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  min-height: 52px;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.home-stats--coin-only .stat-icon {
+  flex: 0 0 28px;
+}
+
+.home-stats--coin-only .stat-label {
+  text-align: left;
+}
+
+.home-stats--coin-only .stat-pill strong {
+  margin-left: auto;
+  text-align: right;
 }
 
 .home-loops-grid {
@@ -646,7 +671,7 @@ h2 {
 }
 
 .home-loop-card.generator-payout-flash {
-  animation: generator-card-payout-pop 340ms cubic-bezier(0.22, 1, 0.36, 1) 1 forwards;
+  animation: home-loop-card-payout-glow 340ms ease-out 1 forwards;
 }
 
 .home-loop-card-head {
@@ -774,7 +799,7 @@ h2 {
 }
 
 .home-loop-ring--pay-pulse {
-  animation: idle-main-ring-pay-pulse-scale 500ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: home-loop-ring-payout-glow 500ms ease-out;
 }
 
 .home-loop-ring--rush {
@@ -1099,6 +1124,122 @@ h2 {
       inset 0 2px 0 rgba(255, 255, 255, 0.72),
       0 0 0 rgba(117, 255, 159, 0);
   }
+}
+
+/** Home circular loops: payout feedback without scale/transform (avoids vertical jank on mobile). */
+@keyframes home-loop-card-payout-glow {
+  0%,
+  100% {
+    filter: brightness(1);
+    box-shadow:
+      0 2px 0 var(--eggflip-border-color),
+      inset 0 2px 0 rgba(255, 255, 255, 0.72),
+      0 0 0 transparent;
+  }
+
+  45% {
+    filter: brightness(1.11) saturate(1.06);
+    box-shadow:
+      0 2px 0 var(--eggflip-border-color),
+      inset 0 2px 0 rgba(255, 255, 255, 0.88),
+      0 0 22px rgba(117, 255, 159, 0.42),
+      0 0 0 2px rgba(255, 224, 128, 0.32);
+  }
+}
+
+@keyframes home-loop-ring-payout-glow {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+
+  50% {
+    filter: brightness(1.12) saturate(1.07);
+    box-shadow:
+      0 0 26px rgba(117, 255, 159, 0.5),
+      0 0 10px rgba(255, 224, 128, 0.28),
+      inset 0 2px 0 rgba(255, 255, 255, 0.78);
+  }
+}
+
+@keyframes home-loop-ring-payout-glow-blue {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+
+  50% {
+    filter: brightness(1.1) saturate(1.06);
+    box-shadow:
+      0 0 24px rgba(112, 214, 255, 0.48),
+      inset 0 2px 0 rgba(255, 255, 255, 0.8);
+  }
+}
+
+@keyframes home-loop-ring-payout-glow-purple {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+
+  50% {
+    filter: brightness(1.1) saturate(1.06);
+    box-shadow:
+      0 0 24px rgba(199, 156, 255, 0.42),
+      0 0 10px rgba(255, 127, 175, 0.22),
+      inset 0 2px 0 rgba(255, 255, 255, 0.78);
+  }
+}
+
+@keyframes home-loop-payout-chip-fade {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes home-loop-upgrade-pressure-glow {
+  0%,
+  100% {
+    transform: none;
+    filter: brightness(1.06) saturate(1.15);
+    box-shadow:
+      0 2px 0 rgba(19, 34, 61, 0.5),
+      inset 0 2px 0 rgba(255, 255, 255, 0.74),
+      0 0 0 transparent;
+  }
+
+  50% {
+    transform: none;
+    filter: brightness(1.12) saturate(1.22);
+    box-shadow:
+      0 2px 0 rgba(19, 34, 61, 0.5),
+      inset 0 2px 0 rgba(255, 255, 255, 0.88),
+      0 0 16px rgba(117, 255, 159, 0.32);
+  }
+}
+
+.home-screen .home-loop-ring--pay-pulse.home-loop-ring--basic {
+  animation: home-loop-ring-payout-glow 500ms ease-out;
+}
+
+.home-screen .home-loop-ring--pay-pulse.home-loop-ring--advanced {
+  animation: home-loop-ring-payout-glow-blue 500ms ease-out;
+}
+
+.home-screen .home-loop-ring--pay-pulse.home-loop-ring--elite {
+  animation: home-loop-ring-payout-glow-purple 500ms ease-out;
+}
+
+.home-screen .home-loop-card-head .generator-loop-payout-chip {
+  animation: home-loop-payout-chip-fade 340ms ease-out backwards;
+}
+
+.home-screen .generator-upgrade-btn.home-loop-upgrade.pressure-pulse:not(:disabled) {
+  animation: home-loop-upgrade-pressure-glow 1.45s ease-in-out infinite;
 }
 
 .generator-loop-metrics {
@@ -4744,15 +4885,41 @@ button:disabled {
   .home-screen {
     height: 100% !important;
     max-height: 100% !important;
-    gap: 3px !important;
+    gap: 6px !important;
     overflow-y: hidden !important;
     overflow-x: hidden !important;
-    /** Reserve space matching fixed.tab bar footprint + Telegram safe inset (see --eggflip-nav-bottom-offset). */
-    padding-bottom: calc(
-        env(safe-area-inset-bottom, 0px) + var(--eggflip-safe-area-bottom) + var(--eggflip-content-safe-area-bottom) +
-          var(--eggflip-nav-bottom-offset) + var(--eggflip-bottom-nav-height) + 12px
-      )
-      !important;
+    padding-bottom: 0 !important;
+  }
+
+  .home-screen .home-stats--coin-only {
+    grid-template-columns: 1fr !important;
+    width: 100% !important;
+    max-width: 220px !important;
+    margin-inline: auto !important;
+    justify-items: stretch !important;
+  }
+
+  .home-screen .home-stats--coin-only .stat-pill {
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 8px !important;
+    text-align: left !important;
+  }
+
+  .home-screen .home-stats--coin-only .stat-icon {
+    flex: 0 0 22px !important;
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  .home-screen .home-stats--coin-only .stat-label {
+    text-align: left !important;
+  }
+
+  .home-screen .home-stats--coin-only .stat-pill strong {
+    margin-left: auto !important;
+    text-align: right !important;
   }
 
   .home-stats {
@@ -5145,10 +5312,10 @@ button:disabled {
   }
 }
 
-/** Home portrait: idle loops visible above fixed bottom nav (~390×844), no scrolling. Overrides wider mobile rules below 430px only. */
+/** Home ~390×844: horizontal coins, Basic+Speed 2-up, Power full-width row, no extra tab gap, payout without scale. */
 @media (max-width: 430px) {
   .phone-frame {
-    gap: 4px !important;
+    gap: 6px !important;
   }
 
   .top-header {
@@ -5166,157 +5333,244 @@ button:disabled {
   }
 
   .screen-content.home-screen {
-    gap: 3px !important;
+    gap: 5px !important;
+    justify-content: flex-start !important;
+    padding-bottom: 0 !important;
   }
 
   .home-screen .home-stats--coin-only {
+    grid-template-columns: 1fr !important;
+    width: 100% !important;
+    max-width: 220px !important;
+    margin-inline: auto !important;
     margin-bottom: 0 !important;
+    justify-items: stretch !important;
   }
 
   .home-screen .home-stats--coin-only .stat-pill {
-    min-height: 36px !important;
-    padding: 4px 4px !important;
-    gap: 2px !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    text-align: left !important;
+    min-height: 46px !important;
+    padding: 7px 12px !important;
+    gap: 10px !important;
     border-width: 2px !important;
-    box-shadow: 0 3px 0 var(--eggflip-border-color), inset 0 2px 0 rgba(255, 255, 255, 0.82) !important;
+    box-shadow: 0 4px 0 var(--eggflip-border-color), inset 0 2px 0 rgba(255, 255, 255, 0.82) !important;
   }
 
-  .home-screen .home-stats .stat-icon {
-    flex-basis: 18px !important;
-    width: 18px !important;
-    height: 18px !important;
-    font-size: 12px !important;
+  .home-screen .home-stats--coin-only .stat-icon {
+    flex: 0 0 26px !important;
+    width: 26px !important;
+    height: 26px !important;
+    font-size: 16px !important;
   }
 
-  .home-screen .home-stats .stat-label {
-    font-size: 7px !important;
+  .home-screen .home-stats--coin-only .stat-label {
+    font-size: 9px !important;
+    text-align: left !important;
   }
 
-  .home-screen .home-stats .stat-pill strong {
-    font-size: 11px !important;
+  .home-screen .home-stats--coin-only .stat-pill strong {
+    margin-left: auto !important;
+    font-size: 14px !important;
+    text-align: right !important;
   }
 
   .home-screen .home-loops-grid {
-    gap: 4px !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    grid-template-areas:
+      "basic speed"
+      "power power" !important;
+    gap: 7px !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
     min-width: 0 !important;
+    width: 100% !important;
+    align-content: center !important;
   }
 
   .home-screen .home-loop-card {
     min-width: 0 !important;
-    padding: 4px 3px !important;
-    gap: 3px !important;
+    border-radius: 10px !important;
+  }
+
+  .home-screen .home-loop-card--basic {
+    grid-area: basic !important;
+  }
+
+  .home-screen .home-loop-card--advanced {
+    grid-area: speed !important;
+  }
+
+  .home-screen .home-loop-card--elite {
+    grid-area: power !important;
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr) !important;
+    grid-template-rows: auto auto auto !important;
+    column-gap: 10px !important;
+    row-gap: 4px !important;
+    align-items: center !important;
+    padding: 6px 8px !important;
+    border-width: 2px !important;
+    box-shadow: 0 2px 0 var(--eggflip-border-color), inset 0 2px 0 rgba(255, 255, 255, 0.72) !important;
+  }
+
+  .home-screen .home-loop-card--elite .home-loop-card-head {
+    grid-column: 1 / -1 !important;
+    justify-items: start !important;
+  }
+
+  .home-screen .home-loop-card--elite .home-loop-ring-wrap {
+    grid-column: 1 !important;
+    grid-row: 2 / span 2 !important;
+    align-self: center !important;
+  }
+
+  .home-screen .home-loop-card--elite .home-loop-stats {
+    grid-column: 2 !important;
+    grid-row: 2 !important;
+    align-items: flex-start !important;
+    text-align: left !important;
+    width: auto !important;
+  }
+
+  .home-screen .home-loop-card--elite .home-loop-upgrade {
+    grid-column: 2 !important;
+    grid-row: 3 !important;
+    align-self: stretch !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+
+  .home-screen .home-loop-card:not(.home-loop-card--elite) {
+    padding: 6px 5px !important;
+    gap: 4px !important;
     border-width: 2px !important;
     box-shadow: 0 2px 0 var(--eggflip-border-color), inset 0 2px 0 rgba(255, 255, 255, 0.72) !important;
   }
 
   .home-screen .home-loop-card-head {
-    gap: 2px !important;
+    gap: 3px !important;
   }
 
   .home-screen .home-loop-name {
-    font-size: 9px !important;
+    font-size: 10px !important;
   }
 
   .home-screen .generator-best-badge {
-    font-size: 5.5px !important;
-    padding: 0 3px !important;
+    font-size: 7px !important;
+    padding: 0 4px !important;
   }
 
   .home-screen .home-loop-card-head .generator-loop-payout-chip {
-    font-size: 6px !important;
-    padding: 0 3px !important;
+    font-size: 7px !important;
+    padding: 0 4px !important;
+  }
+
+  .home-screen .home-loop-card:not(.home-loop-card--elite) .home-loop-ring {
+    width: 86px !important;
+  }
+
+  .home-screen .home-loop-card--elite .home-loop-ring {
+    width: 92px !important;
   }
 
   .home-screen .home-loop-ring {
-    width: 72px !important;
     border-width: 2px !important;
   }
 
   .home-screen .home-loop-ring-inner {
-    inset: 6px !important;
+    inset: 7px !important;
   }
 
   .home-screen .home-loop-ring-core {
-    max-width: 58px !important;
-    gap: 0 !important;
+    max-width: 64px !important;
   }
 
   .home-screen .home-loop-ring-core strong {
-    font-size: 10px !important;
-    line-height: 1 !important;
+    font-size: 11px !important;
   }
 
   .home-screen .home-loop-ring-label {
-    font-size: 5.5px !important;
+    font-size: 6px !important;
     letter-spacing: 0.04em !important;
   }
 
   .home-screen .home-loop-stats {
-    gap: 1px !important;
+    gap: 2px !important;
   }
 
   .home-screen .home-loop-progress {
-    font-size: 7.5px !important;
+    font-size: 8px !important;
   }
 
   .home-screen .home-loop-level {
-    font-size: 8px !important;
+    font-size: 9px !important;
   }
 
   .home-screen .generator-upgrade-btn.home-loop-upgrade {
     max-width: none !important;
     width: 100% !important;
-    font-size: 8px !important;
-    padding: 4px 2px !important;
-    min-height: 29px !important;
+    font-size: 9px !important;
+    padding: 6px 6px !important;
+    min-height: 34px !important;
+    margin-top: 0 !important;
     border-width: 2px !important;
     box-shadow: 0 2px 0 rgba(19, 34, 61, 0.5), inset 0 2px 0 rgba(255, 255, 255, 0.74) !important;
   }
 
   .home-screen .progress-goal-grid {
-    gap: 2px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    flex: 0 0 auto !important;
+    gap: 6px !important;
   }
 
   .home-screen .progress-goal-grid .loop-progress-row {
-    min-height: 0 !important;
-    padding: 4px 6px !important;
-    gap: 4px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    min-height: 48px !important;
+    padding: 8px 10px !important;
+    gap: 6px !important;
     border-width: 2px !important;
-    box-shadow: 0 2px 0 var(--eggflip-border-color), 0 4px 8px rgba(19, 34, 61, 0.08), inset 0 2px 0 rgba(255, 255, 255, 0.72) !important;
-  }
-
-  .home-screen .segmented-progress-track {
-    gap: 1px !important;
-    height: 10px !important;
-    padding: 1px !important;
-    border-width: 2px !important;
+    box-shadow: 0 3px 0 var(--eggflip-border-color), 0 6px 10px rgba(19, 34, 61, 0.08), inset 0 2px 0 rgba(255, 255, 255, 0.72) !important;
   }
 
   .home-screen .loop-progress-track {
-    height: 10px !important;
-    padding: 1px !important;
+    height: 12px !important;
+    padding: 2px !important;
     border-width: 2px !important;
   }
 
-  .home-screen .essence-access.compact {
-    min-height: 36px !important;
-    padding: 5px 10px !important;
-  }
-
-  .home-screen .essence-access.compact strong {
-    font-size: 17px !important;
+  .home-screen .segmented-progress-track {
+    gap: 2px !important;
+    height: 12px !important;
+    padding: 2px !important;
+    border-width: 2px !important;
   }
 
   .home-screen .loop-progress-status {
-    font-size: 7.5px !important;
-    gap: 2px !important;
+    font-size: 9px !important;
+    gap: 4px !important;
   }
 
   .home-screen .loop-progress-name {
-    font-size: 9px !important;
+    font-size: 10px !important;
   }
 
   .home-screen .loop-progress-header {
-    gap: 4px !important;
+    gap: 6px !important;
+  }
+
+  .home-screen .essence-access.compact {
+    min-height: 40px !important;
+    padding: 6px 12px !important;
+    align-self: center !important;
+  }
+
+  .home-screen .essence-access.compact strong {
+    font-size: 18px !important;
   }
 }
