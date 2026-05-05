@@ -58,7 +58,7 @@ import {
   triggerHapticImpact,
   triggerHapticNotification,
 } from './telegram';
-import type { CreatureDefinition, EggType, GameState, OwnedCreature, PrestigeUpgradeId, ReferralMilestone, Screen } from './types';
+import type { CreatureDefinition, EggType, GameState, OwnedCreature, PrestigeUpgradeId, ReferralMilestone, Screen, Tier } from './types';
 import './styles.css';
 
 interface HatchResult {
