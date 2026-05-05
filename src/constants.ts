@@ -1,4 +1,15 @@
-import type { CreatureDefinition, DailyReward, EggType, IdleGeneratorId, PrestigeUpgradeId, Rarity, ReferralMilestone, Tier } from './types';
+import type {
+  CreatureDefinition,
+  DailyReward,
+  EggType,
+  HomeLoopSlotId,
+  HomePlaceholderLoopId,
+  IdleGeneratorId,
+  PrestigeUpgradeId,
+  Rarity,
+  ReferralMilestone,
+  Tier,
+} from './types';
 
 export const GAME_TITLE = 'Idle Loop';
 
@@ -61,6 +72,27 @@ export const IDLE_GENERATORS: Record<IdleGeneratorId, {
     upgradeBaseCost: 850,
     upgradeCostMultiplier: 1.6,
   },
+};
+
+export const IDLE_GENERATOR_IDS: readonly IdleGeneratorId[] = ['basic', 'advanced', 'elite'];
+
+/** Row-major 2×3 grid on Home: Basic·Speed | Power·Quantum | Core·Prestige */
+export const HOME_LOOP_SLOT_ORDER: readonly HomeLoopSlotId[] = [
+  'basic',
+  'advanced',
+  'elite',
+  'quantum',
+  'core',
+  'prestige',
+];
+
+export const HOME_PLACEHOLDER_META: Record<
+  HomePlaceholderLoopId,
+  { title: string; unlockTier?: Tier; minEssence?: number }
+> = {
+  quantum: { title: 'Quantum', unlockTier: 4 },
+  core: { title: 'Core', unlockTier: 5 },
+  prestige: { title: 'Prestige', minEssence: 25 },
 };
 
 // Economy knobs live here so egg prices, upgrades, rewards, and income can be tuned later.

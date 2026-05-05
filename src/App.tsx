@@ -21,7 +21,10 @@ import {
   FREE_EGG_COOLDOWN_MS,
   GAME_TITLE,
   IDLE_GENERATORS,
+  IDLE_GENERATOR_IDS,
   IDLE_UPGRADE_PRESSURE_MS,
+  HOME_LOOP_SLOT_ORDER,
+  HOME_PLACEHOLDER_META,
   INCOME_BOOST_DURATION_MS,
   INVITE_POPUP_HATCH_THRESHOLD,
   PRESTIGE_UPGRADES,
@@ -78,6 +81,8 @@ import type {
   CreatureDefinition,
   EggType,
   GameState,
+  HomeLoopSlotId,
+  HomePlaceholderLoopId,
   IdleGeneratorId,
   OwnedCreature,
   PrestigeUpgradeId,
@@ -670,7 +675,6 @@ function App() {
               now={now}
               mainLoopPaidRef={mainLoopPaidRef}
               onUpgradeGenerator={upgradeIdleGenerator}
-              onOpenPrestige={() => setActiveScreen('prestige')}
             />
           )}
           {activeScreen === 'hatch' && (
@@ -1011,21 +1015,23 @@ interface HomeScreenProps {
   now: number;
   mainLoopPaidRef: MutableRefObject<(() => void) | undefined>;
   onUpgradeGenerator: (id: IdleGeneratorId) => void;
-  onOpenPrestige: () => void;
 }
 
-const IDLE_GENERATOR_ORDER: IdleGeneratorId[] = ['basic', 'advanced', 'elite'];
+function isIdleGeneratorSlot(id: HomeLoopSlotId): id is IdleGeneratorId {
+  return id === 'basic' || id === 'advanced' || id === 'elite';
+}
 
-function HomeScreen({
-  gameState,
-  now,
-  mainLoopPaidRef,
-  onUpgradeGenerator,
-  onOpenPrestige,
-}: HomeScreenProps) {
-  const essenceGain = getPrestigeEssenceGain(gameState);
-  const essenceLoopProgress = getEssenceLoopProgress(gameState, essenceGain);
-  const showEssenceAccess = gameState.essence > 0 || gameState.prestigeCount > 0 || essenceGain > 0;
+function placeholderUnlockLabel(meta: (typeof HOME_PLACEHOLDER_META)[HomePlaceholderLoopId]): string {
+  if (meta.unlockTier !== undefined) {
+    return `Unlock at Tier ${meta.unlockTier}`;
+  }
+  if (meta.minEssence !== undefined) {
+    return `Unlock at Essence ${formatNumber(meta.minEssence)}`;
+  }
+  return 'Locked';
+}
+
+function HomeScreen({ gameState, now, mainLoopPaidRef, onUpgradeGenerator }: HomeScreenProps) {
   const bestUpgradeId = useMemo(
     () => getBestIdleGeneratorUpgradeId(gameState, now),
     [
@@ -1049,33 +1055,56 @@ function HomeScreen({
       </section>
 
       <div className="home-loops-grid" aria-label="Idle loops">
-        {IDLE_GENERATOR_ORDER.map((id) => (
-          <HomeCircularLoopCard
-            bestUpgradeId={bestUpgradeId}
-            gameState={gameState}
-            generatorId={id}
-            key={id}
-            now={now}
-            onUpgrade={() => onUpgradeGenerator(id)}
-          />
-        ))}
+        {HOME_LOOP_SLOT_ORDER.map((slot) =>
+          isIdleGeneratorSlot(slot) ? (
+            <HomeCircularLoopCard
+              bestUpgradeId={bestUpgradeId}
+              gameState={gameState}
+              generatorId={slot}
+              key={slot}
+              now={now}
+              onUpgrade={() => onUpgradeGenerator(slot)}
+            />
+          ) : (
+            <HomeLockedLoopCard key={slot} slotId={slot} />
+          ),
+        )}
       </div>
+    </div>
+  );
+}
 
-      <div className="progress-goal-grid" aria-label="Prestige progress">
-        <ProgressLoop
-          label="✦"
-          percent={essenceLoopProgress.percent}
-          status={essenceLoopProgress.status}
-          variant="essence"
-        />
+function HomeLockedLoopCard({ slotId }: { slotId: HomePlaceholderLoopId }) {
+  const meta = HOME_PLACEHOLDER_META[slotId];
+  return (
+    <div
+      aria-label={`${meta.title} locked`}
+      className={['home-loop-card', 'home-loop-card--placeholder', `home-loop-card--${slotId}`].join(' ')}
+    >
+      <div className="home-loop-card-head home-loop-card-head--compact">
+        <div className="home-loop-name-row">
+          <span className="home-loop-name">{meta.title}</span>
+        </div>
       </div>
-
-      {showEssenceAccess && (
-        <button className="essence-access compact" onClick={onOpenPrestige} type="button">
-          <span aria-hidden>✦</span>
-          <strong>{formatNumber(gameState.essence)}</strong>
-        </button>
-      )}
+      <div className="home-loop-ring-wrap">
+        <div
+          className={['home-loop-ring', 'home-loop-ring--locked', 'home-loop-ring--placeholder', `home-loop-ring--${slotId}`].join(' ')}
+          style={{ '--cycle-progress': '0deg' } as CSSProperties}
+        >
+          <div className="home-loop-ring-inner" />
+          <div className="home-loop-ring-core">
+            <strong className="home-loop-reward-locked">—</strong>
+            <span className="home-loop-ring-label">locked</span>
+          </div>
+        </div>
+      </div>
+      <p className="home-loop-unlock-hint">{placeholderUnlockLabel(meta)}</p>
+      <div className="home-loop-stats home-loop-stats--footer">
+        <span className="home-loop-level">Lv —</span>
+      </div>
+      <button className="generator-upgrade-btn home-loop-upgrade" disabled type="button">
+        —
+      </button>
     </div>
   );
 }
@@ -1160,7 +1189,7 @@ function HomeCircularLoopCard({ gameState, generatorId, now, bestUpgradeId, onUp
         .filter(Boolean)
         .join(' ')}
     >
-      <div className="home-loop-card-head">
+      <div className="home-loop-card-head home-loop-card-head--compact">
         <div className="home-loop-name-row">
           <span className="home-loop-name">{HOME_LOOP_LABELS[generatorId]}</span>
           {isBest && (
@@ -1168,12 +1197,12 @@ function HomeCircularLoopCard({ gameState, generatorId, now, bestUpgradeId, onUp
               Best
             </span>
           )}
+          {payoutCoinLabel ? (
+            <span aria-live="polite" className="generator-loop-payout-chip">
+              {payoutCoinLabel}
+            </span>
+          ) : null}
         </div>
-        {payoutCoinLabel ? (
-          <span aria-live="polite" className="generator-loop-payout-chip">
-            {payoutCoinLabel}
-          </span>
-        ) : null}
       </div>
 
       <div className="home-loop-ring-wrap">
@@ -1186,7 +1215,7 @@ function HomeCircularLoopCard({ gameState, generatorId, now, bestUpgradeId, onUp
         </div>
       </div>
 
-      <div className="home-loop-stats">
+      <div className="home-loop-stats home-loop-stats--footer">
         <span className="home-loop-progress">
           {unlocked && phase ? `${Math.round(phase.progressPercent)}% · ${phase.secRemaining}s` : '—'}
         </span>
@@ -1199,95 +1228,6 @@ function HomeCircularLoopCard({ gameState, generatorId, now, bestUpgradeId, onUp
     </div>
   );
 }
-
-interface LoopProgress {
-  percent: number;
-  status: string;
-}
-
-interface ProgressLoopProps extends LoopProgress {
-  label: string;
-  variant: 'egg' | 'tier' | 'income' | 'essence';
-}
-
-function ProgressLoop({ label, percent, status, variant }: ProgressLoopProps) {
-  const normalizedPercent = clampProgressPercent(percent);
-  const previousPercentRef = useRef(normalizedPercent);
-  const growTimerRef = useRef<number | null>(null);
-  const [isGrowing, setIsGrowing] = useState(false);
-  const segments = Array.from({ length: 8 }, (_, index) => index);
-  const activeSegments = Math.ceil((normalizedPercent / 100) * segments.length);
-  const isComplete = normalizedPercent >= 100;
-  const isHot = normalizedPercent > 80 && !isComplete;
-  const statusText =
-    status.trim() === ''
-      ? ''
-      : isComplete && !status.endsWith('!')
-        ? `${status}!`
-        : status;
-
-  useEffect(() => {
-    if (normalizedPercent > previousPercentRef.current) {
-      setIsGrowing(true);
-      if (growTimerRef.current) {
-        window.clearTimeout(growTimerRef.current);
-      }
-      growTimerRef.current = window.setTimeout(() => {
-        setIsGrowing(false);
-        growTimerRef.current = null;
-      }, 520);
-    }
-
-    previousPercentRef.current = normalizedPercent;
-
-    return () => {
-      if (growTimerRef.current) {
-        window.clearTimeout(growTimerRef.current);
-        growTimerRef.current = null;
-      }
-    };
-  }, [normalizedPercent]);
-
-  return (
-    <div className={`loop-progress-row ${variant} ${isHot ? 'is-hot' : ''} ${isComplete ? 'complete' : ''} ${isGrowing ? 'is-growing' : ''}`}>
-      <div className="loop-progress-header">
-        <span className="loop-progress-name">{label}</span>
-        <strong className="loop-progress-status">
-          <span>{Math.round(normalizedPercent)}%</span>
-          {statusText !== '' ? <span>{statusText}</span> : null}
-        </strong>
-      </div>
-      {variant === 'income' ? (
-        <div className="segmented-progress-track" aria-label={label}>
-          {segments.map((segment) => (
-            <span className={segment < activeSegments ? 'filled' : ''} key={segment} />
-          ))}
-        </div>
-      ) : (
-        <div className="loop-progress-track" aria-label={label}>
-          <span style={{ width: `${normalizedPercent}%` }} />
-        </div>
-      )}
-    </div>
-  );
-}
-
-
-
-const getEssenceLoopProgress = (gameState: GameState, essenceGain: number): LoopProgress => {
-  const nextGain = essenceGain + 1;
-  const currentBracket = Math.pow(essenceGain, 2) * ECONOMY.prestigeEssenceDivisor;
-  const nextBracket = Math.pow(nextGain, 2) * ECONOMY.prestigeEssenceDivisor;
-  const range = Math.max(1, nextBracket - currentBracket);
-  const coinsThisRun = gameState.totalCoinsEarned;
-
-  return {
-    percent: ((coinsThisRun - currentBracket) / range) * 100,
-    status: '',
-  };
-};
-
-const clampProgressPercent = (value: number): number => Math.min(100, Math.max(0, value));
 
 interface HatchScreenProps {
   gameState: GameState;
@@ -1393,7 +1333,7 @@ function CollectionScreen({
       </div>
 
       <div className="generator-status-panel" aria-label="Generator status">
-        {IDLE_GENERATOR_ORDER.map((id) => {
+        {IDLE_GENERATOR_IDS.map((id) => {
           const cfg = IDLE_GENERATORS[id];
           const unlocked = isIdleGeneratorUnlocked(gameState, id);
           const level = gameState.idleGenerators[id].level;

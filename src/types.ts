@@ -10,6 +10,11 @@ export type PrestigeUpgrades = Record<PrestigeUpgradeId, number>;
 
 export type IdleGeneratorId = 'basic' | 'advanced' | 'elite';
 
+/** Placeholder Home loop slots (no economy logic yet). */
+export type HomePlaceholderLoopId = 'quantum' | 'core' | 'prestige';
+
+export type HomeLoopSlotId = IdleGeneratorId | HomePlaceholderLoopId;
+
 export interface IdleGeneratorState {
   level: number;
   lastCollectedAt: number;
