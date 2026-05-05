@@ -22,6 +22,9 @@ export const INVITE_POPUP_HATCH_THRESHOLD = 3;
 export const MAIN_IDLE_CYCLE_MS = 4_000;
 export const MAIN_IDLE_BASE_COINS = 8;
 
+/** Gentle cue when no generator upgrade happened for a while (UI only). */
+export const IDLE_UPGRADE_PRESSURE_MS = 75_000;
+
 export const IDLE_GENERATORS: Record<IdleGeneratorId, {
   id: IdleGeneratorId;
   title: string;
@@ -35,28 +38,28 @@ export const IDLE_GENERATORS: Record<IdleGeneratorId, {
     id: 'basic',
     title: 'Basic Generator',
     unlockTier: 1,
-    cycleMs: 3_000,
+    cycleMs: 2_800,
     baseCoinsPerCycle: 2,
-    upgradeBaseCost: 25,
-    upgradeCostMultiplier: 1.45,
+    upgradeBaseCost: 20,
+    upgradeCostMultiplier: 1.42,
   },
   advanced: {
     id: 'advanced',
     title: 'Advanced Generator',
     unlockTier: 2,
-    cycleMs: 4_500,
-    baseCoinsPerCycle: 12,
-    upgradeBaseCost: 180,
-    upgradeCostMultiplier: 1.55,
+    cycleMs: 4_400,
+    baseCoinsPerCycle: 11,
+    upgradeBaseCost: 160,
+    upgradeCostMultiplier: 1.52,
   },
   elite: {
     id: 'elite',
     title: 'Elite Generator',
     unlockTier: 3,
-    cycleMs: 6_000,
-    baseCoinsPerCycle: 40,
-    upgradeBaseCost: 900,
-    upgradeCostMultiplier: 1.65,
+    cycleMs: 6_500,
+    baseCoinsPerCycle: 45,
+    upgradeBaseCost: 850,
+    upgradeCostMultiplier: 1.6,
   },
 };
 

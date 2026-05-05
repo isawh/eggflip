@@ -72,6 +72,7 @@ export const createInitialGameState = (now = Date.now()): GameState => ({
     lastLoginAt: null,
   },
   referralRewardClaimed: false,
+  lastIdleGeneratorUpgradeAt: now,
 });
 
 export const loadGameState = (): GameState => {
@@ -136,6 +137,7 @@ export const loadGameState = (): GameState => {
       mainLoopLastPayoutAt,
       lastFreeEggAt: asTimestamp(saved.lastFreeEggAt, base.lastFreeEggAt),
       incomeBoostUntil: asNullableTimestamp(saved.incomeBoostUntil),
+      lastIdleGeneratorUpgradeAt: asTimestamp(saved.lastIdleGeneratorUpgradeAt, asTimestamp(saved.lastActiveAt, base.lastIdleGeneratorUpgradeAt)),
       playerTier,
       maxCreatureSlots: getSavedSlotCap(playerTier, saved.maxCreatureSlots, prestigeUpgrades.slot),
       referralCode: normalizeReferralCode(saved.referralCode, base.referralCode),

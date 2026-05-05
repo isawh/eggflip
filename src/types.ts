@@ -105,4 +105,6 @@ export interface GameState {
   invitePopupShown: boolean;
   dailyRewards: DailyRewardState;
   referralRewardClaimed: boolean;
+  /** Wall time of last idle generator upgrade (for soft UI pressure). Main loop unaffected. */
+  lastIdleGeneratorUpgradeAt: number;
 }
