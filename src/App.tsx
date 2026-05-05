@@ -24,8 +24,6 @@ import {
   IDLE_UPGRADE_PRESSURE_MS,
   INCOME_BOOST_DURATION_MS,
   INVITE_POPUP_HATCH_THRESHOLD,
-  MAIN_IDLE_CYCLE_MS,
-  MILLISECONDS_PER_MINUTE,
   PRESTIGE_UPGRADES,
   RARITY_META,
   REFERRAL_MILESTONES,
@@ -51,18 +49,12 @@ import {
   getFreeEggReadyAt,
   getGeneratorUpgradeCost,
   getIdleGeneratorCoinsPerCycle,
-  getIdleGeneratorIncomePerMinute,
-  getIdleLoopPhase,
   getIdleGeneratorLoopPhase,
-  getMainIdleLoopPhase,
-  getMainLoopCoinsPerCycle,
   getIncomeBoostRemainingMs,
   getNextDailyReward,
   getPrestigeEssenceGain,
   getPrestigeUpgradeCost,
   getPreferredEggType,
-  getTierProgress,
-  getTotalIncomePerMinute,
   getUpgradedIncomePreview,
   getUpgradeCost,
   isIdleGeneratorUnlocked,
@@ -92,7 +84,6 @@ import type {
   Rarity,
   ReferralMilestone,
   Screen,
-  Tier,
 } from './types';
 import './styles.css';
 
@@ -113,6 +104,12 @@ interface SessionStart {
 const IDLE_PAYOUT_FLASH_MS = 340;
 /** Visual-only surge after purchasing a generator level (economy unchanged). */
 const GENERATOR_UPGRADE_RUSH_MS = 1650;
+
+const HOME_LOOP_LABELS: Record<IdleGeneratorId, string> = {
+  basic: 'Basic',
+  advanced: 'Speed',
+  elite: 'Power',
+};
 
 /** Flash + one frame without CSS transition when `cycleStartAt` advances (real payout boundary). */
 function useIdleCyclePayoutCue(
@@ -200,46 +197,15 @@ function useIdleGeneratorCyclePayoutCue(
   return { payoutFlash, snapPhase, payoutCoinLabel };
 }
 
-interface SyncedLinearCycleBarProps {
-  cycleStartAt: number;
-  cycleDurationMs: number;
-  now: number;
-  active: boolean;
-  ariaLabel: string;
-  payoutFlash: boolean;
-  snapPhase: boolean;
-  upgradeRush: boolean;
-}
-
-function SyncedLinearCycleBar({
-  cycleStartAt,
-  cycleDurationMs,
-  now,
-  active,
-  ariaLabel,
-  payoutFlash,
-  snapPhase,
-  upgradeRush,
-}: SyncedLinearCycleBarProps) {
-  const phase = active ? getIdleLoopPhase(now, cycleStartAt, cycleDurationMs) : null;
-  const progressPercent = phase?.progressPercent ?? 0;
-  const fillClass = active
-    ? snapPhase
-      ? 'generator-loop-fill--instant'
-      : 'generator-loop-fill--smooth'
-    : 'generator-loop-fill--instant';
-
-  return (
-    <div
-      className={`generator-loop-track${snapPhase || payoutFlash ? ' just-paid' : ''}${upgradeRush ? ' generator-loop-track--upgrade-rush' : ''}`}
-      aria-label={ariaLabel}
-    >
-      <span
-        className={`generator-loop-fill ${fillClass}${upgradeRush ? ' generator-loop-fill--rush-vis' : ''}`}
-        style={{ width: `${progressPercent}%` }}
-      />
-    </div>
-  );
+function MainLoopPayoutBridge({
+  gameState,
+  mainLoopPaidRef,
+}: {
+  gameState: GameState;
+  mainLoopPaidRef: MutableRefObject<(() => void) | undefined>;
+}) {
+  useIdleCyclePayoutCue(gameState.mainLoopLastPayoutAt, true, mainLoopPaidRef);
+  return null;
 }
 
 function App() {
@@ -385,7 +351,6 @@ function App() {
     [gameState.creatures, gameState.selectedCreatureUid],
   );
 
-  const totalIncome = getTotalIncomePerMinute(gameState, now);
   const referralLink = getReferralLink(gameState.referralCode);
   const telegramShareUrl = getTelegramShareUrl(referralLink);
 
@@ -679,7 +644,7 @@ function App() {
     updateGameState((state) => applyGeneratorUpgrade(state, generatorId, Date.now()));
     triggerHapticNotification('success');
     playSound('upgrade');
-    showFeedback(`${IDLE_GENERATORS[generatorId].title} upgraded`);
+    showFeedback(`${HOME_LOOP_LABELS[generatorId]} upgraded`);
   };
 
   mainLoopPaidRef.current = activeScreen === 'home' ? pulsePhoneFrameIdle : undefined;
@@ -702,7 +667,6 @@ function App() {
           {activeScreen === 'home' && (
             <HomeScreen
               gameState={gameState}
-              totalIncome={totalIncome}
               now={now}
               mainLoopPaidRef={mainLoopPaidRef}
               onUpgradeGenerator={upgradeIdleGenerator}
@@ -1044,7 +1008,6 @@ const applyReferralMilestoneReward = (state: GameState, milestone: ReferralMiles
 
 interface HomeScreenProps {
   gameState: GameState;
-  totalIncome: number;
   now: number;
   mainLoopPaidRef: MutableRefObject<(() => void) | undefined>;
   onUpgradeGenerator: (id: IdleGeneratorId) => void;
@@ -1055,17 +1018,14 @@ const IDLE_GENERATOR_ORDER: IdleGeneratorId[] = ['basic', 'advanced', 'elite'];
 
 function HomeScreen({
   gameState,
-  totalIncome,
   now,
   mainLoopPaidRef,
   onUpgradeGenerator,
   onOpenPrestige,
 }: HomeScreenProps) {
-  const tierProgress = getTierProgress(gameState);
   const essenceGain = getPrestigeEssenceGain(gameState);
   const essenceLoopProgress = getEssenceLoopProgress(gameState, essenceGain);
   const showEssenceAccess = gameState.essence > 0 || gameState.prestigeCount > 0 || essenceGain > 0;
-  const mainPayout = getMainLoopCoinsPerCycle(gameState, now);
   const bestUpgradeId = useMemo(
     () => getBestIdleGeneratorUpgradeId(gameState, now),
     [
@@ -1082,18 +1042,15 @@ function HomeScreen({
 
   return (
     <div className="screen-content home-screen">
-      <section className="stats-grid home-stats" aria-label="Player resources">
+      <MainLoopPayoutBridge gameState={gameState} mainLoopPaidRef={mainLoopPaidRef} />
+
+      <section className="stats-grid home-stats home-stats--coin-only" aria-label="Coins">
         <StatPill icon="🪙" label="Coins" value={formatNumber(gameState.coins)} />
-        <StatPill icon="💎" label="Gems" value={formatNumber(gameState.gems)} />
-        <StatPill icon="⚡" label="Income" value={`${formatNumber(totalIncome)}/m`} />
-        <StatPill icon="📈" label="Tier" value={`${gameState.playerTier}`} />
       </section>
 
-      <MainIncomeLoop gameState={gameState} mainLoopPaidRef={mainLoopPaidRef} now={now} mainPayout={mainPayout} />
-
-      <div className="generator-loop-grid" aria-label="Generators">
+      <div className="home-loops-grid" aria-label="Idle loops">
         {IDLE_GENERATOR_ORDER.map((id) => (
-          <GeneratorLoopCard
+          <HomeCircularLoopCard
             bestUpgradeId={bestUpgradeId}
             gameState={gameState}
             generatorId={id}
@@ -1104,15 +1061,9 @@ function HomeScreen({
         ))}
       </div>
 
-      <div className="progress-goal-grid" aria-label="Long-term progress">
+      <div className="progress-goal-grid" aria-label="Prestige progress">
         <ProgressLoop
-          label="Tier"
-          percent={tierProgress.progressPercent}
-          status={`${tierProgress.currentLabel} · ${getTierLoopStatus(tierProgress.progressPercent, tierProgress.nextTier)}`}
-          variant="tier"
-        />
-        <ProgressLoop
-          label="Essence"
+          label="✦"
           percent={essenceLoopProgress.percent}
           status={essenceLoopProgress.status}
           variant="essence"
@@ -1121,63 +1072,15 @@ function HomeScreen({
 
       {showEssenceAccess && (
         <button className="essence-access compact" onClick={onOpenPrestige} type="button">
-          <span>✦ Essence</span>
+          <span aria-hidden>✦</span>
           <strong>{formatNumber(gameState.essence)}</strong>
-          <small>{essenceGain > 0 ? `+${formatNumber(essenceGain)} on reset` : `${gameState.prestigeCount} resets`}</small>
         </button>
       )}
     </div>
   );
 }
 
-interface MainIncomeLoopProps {
-  gameState: GameState;
-  now: number;
-  mainPayout: number;
-  mainLoopPaidRef: MutableRefObject<(() => void) | undefined>;
-}
-
-function MainIncomeLoop({ gameState, now, mainPayout, mainLoopPaidRef }: MainIncomeLoopProps) {
-  const cycleStart = gameState.mainLoopLastPayoutAt;
-  const phase = getMainIdleLoopPhase(gameState, now);
-  const cycleProgress = phase.progressPercent;
-  const { payoutFlash, snapPhase } = useIdleCyclePayoutCue(cycleStart, true, mainLoopPaidRef);
-  const isCompleting = cycleProgress > 84;
-  const cycleStyle = {
-    '--cycle-progress': `${cycleProgress * 3.6}deg`,
-  } as CSSProperties;
-
-  return (
-    <div
-      className={[
-        'income-cycle-card',
-        payoutFlash ? 'just-paid' : '',
-        isCompleting ? 'is-completing' : '',
-      ]
-        .filter(Boolean)
-        .join(' ')}
-      aria-label="Main payout loop"
-    >
-      <div
-        className={`income-cycle-ring${snapPhase ? ' income-cycle-ring--phase-snap' : ''}${payoutFlash ? ' income-cycle-ring--idle-pay-pulse' : ''}`}
-        style={cycleStyle}
-      >
-        <div className="income-cycle-core">
-          <span>Next</span>
-          <strong>+{formatNumber(mainPayout)}</strong>
-          <small>coins</small>
-        </div>
-      </div>
-      <div className="income-cycle-meta">
-        <span>Main loop</span>
-        <strong>{phase.secRemaining}s</strong>
-        <small>Cycle: wall time − start every {MAIN_IDLE_CYCLE_MS / 1000}s</small>
-      </div>
-    </div>
-  );
-}
-
-interface GeneratorLoopCardProps {
+interface HomeCircularLoopCardProps {
   gameState: GameState;
   generatorId: IdleGeneratorId;
   now: number;
@@ -1185,10 +1088,13 @@ interface GeneratorLoopCardProps {
   onUpgrade: () => void;
 }
 
-function GeneratorLoopCard({ gameState, generatorId, now, bestUpgradeId, onUpgrade }: GeneratorLoopCardProps) {
+function HomeCircularLoopCard({ gameState, generatorId, now, bestUpgradeId, onUpgrade }: HomeCircularLoopCardProps) {
   const cfg = IDLE_GENERATORS[generatorId];
   const unlocked = isIdleGeneratorUnlocked(gameState, generatorId);
   const gen = gameState.idleGenerators[generatorId];
+  const phase = unlocked ? getIdleGeneratorLoopPhase(gameState, generatorId, now) : null;
+  const progressPercent = phase?.progressPercent ?? 0;
+
   const prevGenLevelRef = useRef(gen.level);
   const [upgradeRushUntil, setUpgradeRushUntil] = useState(0);
 
@@ -1205,16 +1111,15 @@ function GeneratorLoopCard({ gameState, generatorId, now, bestUpgradeId, onUpgra
   }, [gen.level, unlocked]);
 
   const upgradeRushActive = unlocked && upgradeRushUntil > now;
-  const phaseDetail = unlocked ? getIdleGeneratorLoopPhase(gameState, generatorId, now) : null;
   const incomePerCycle = unlocked ? getIdleGeneratorCoinsPerCycle(gameState, generatorId, now) : 0;
-  const cyclesPerMinute = MILLISECONDS_PER_MINUTE / cfg.cycleMs;
-  const totalIncomePerMinute = unlocked ? getIdleGeneratorIncomePerMinute(gameState, generatorId, now) : 0;
+
   const { payoutFlash, snapPhase, payoutCoinLabel } = useIdleGeneratorCyclePayoutCue(
     gen.lastCollectedAt,
     cfg.cycleMs,
     incomePerCycle,
     unlocked,
   );
+
   const cost = getGeneratorUpgradeCost(gameState, generatorId);
   const canBuy = canAffordGeneratorUpgrade(gameState, generatorId);
   const isBest = unlocked && bestUpgradeId === generatorId;
@@ -1222,9 +1127,23 @@ function GeneratorLoopCard({ gameState, generatorId, now, bestUpgradeId, onUpgra
     unlocked && canBuy && now - gameState.lastIdleGeneratorUpgradeAt >= IDLE_UPGRADE_PRESSURE_MS;
 
   const upgradeBtnClass = [
-    'generator-upgrade-btn',
+    'generator-upgrade-btn home-loop-upgrade',
     unlocked && canBuy ? 'can-afford' : '',
     upgradePressure ? 'pressure-pulse' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const cycleStyle = {
+    '--cycle-progress': unlocked ? `${progressPercent * 3.6}deg` : '0deg',
+  } as CSSProperties;
+
+  const ringClass = [
+    `home-loop-ring home-loop-ring--${generatorId}`,
+    snapPhase ? 'home-loop-ring--snap' : '',
+    payoutFlash ? 'home-loop-ring--pay-pulse' : '',
+    upgradeRushActive ? 'home-loop-ring--rush' : '',
+    !unlocked ? 'home-loop-ring--locked' : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -1232,8 +1151,8 @@ function GeneratorLoopCard({ gameState, generatorId, now, bestUpgradeId, onUpgra
   return (
     <div
       className={[
-        'generator-loop-card',
-        generatorId,
+        'home-loop-card',
+        `home-loop-card--${generatorId}`,
         isBest ? 'is-best-upgrade' : '',
         upgradeRushActive ? 'generator-loop-card--upgrade-rush' : '',
         snapPhase || payoutFlash ? 'generator-payout-flash' : '',
@@ -1241,54 +1160,41 @@ function GeneratorLoopCard({ gameState, generatorId, now, bestUpgradeId, onUpgra
         .filter(Boolean)
         .join(' ')}
     >
-      <div className="generator-loop-header">
-        <span className="generator-loop-title">
-          {cfg.title}
+      <div className="home-loop-card-head">
+        <div className="home-loop-name-row">
+          <span className="home-loop-name">{HOME_LOOP_LABELS[generatorId]}</span>
           {isBest && (
             <span className="generator-best-badge" title="Highest ROI among generators">
               Best
             </span>
           )}
-          {payoutCoinLabel && (
-            <span aria-live="polite" className="generator-loop-payout-chip">
-              {payoutCoinLabel}
-            </span>
-          )}
+        </div>
+        {payoutCoinLabel ? (
+          <span aria-live="polite" className="generator-loop-payout-chip">
+            {payoutCoinLabel}
+          </span>
+        ) : null}
+      </div>
+
+      <div className="home-loop-ring-wrap">
+        <div aria-label={`${HOME_LOOP_LABELS[generatorId]} loop progress`} className={ringClass} style={cycleStyle}>
+          <div className="home-loop-ring-inner" />
+          <div className="home-loop-ring-core">
+            <strong>{unlocked ? `+${formatNumber(incomePerCycle)}` : '—'}</strong>
+            <span className="home-loop-ring-label">reward</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="home-loop-stats">
+        <span className="home-loop-progress">
+          {unlocked && phase ? `${Math.round(phase.progressPercent)}% · ${phase.secRemaining}s` : '—'}
         </span>
-        <strong>Lv {gen.level}</strong>
+        <span className="home-loop-level">Lv {gen.level}</span>
       </div>
-      <SyncedLinearCycleBar
-        active={unlocked}
-        ariaLabel={`${cfg.title} payout timer`}
-        cycleDurationMs={cfg.cycleMs}
-        cycleStartAt={gen.lastCollectedAt}
-        now={now}
-        payoutFlash={payoutFlash}
-        snapPhase={snapPhase}
-        upgradeRush={upgradeRushActive}
-      />
-      <div className="generator-loop-metrics" aria-label="Generator yield">
-        {unlocked ? (
-          <>
-            <span>Coins/cycle: +{formatNumber(incomePerCycle)}</span>
-            <span>
-              Cycles/min:{' '}
-              {cyclesPerMinute >= 10 ? cyclesPerMinute.toFixed(1) : cyclesPerMinute.toFixed(2)}
-            </span>
-            <span>Total income: +{formatNumber(totalIncomePerMinute)}/m</span>
-          </>
-        ) : (
-          <span className="generator-loop-metrics-locked">Tier {cfg.unlockTier} to unlock</span>
-        )}
-      </div>
-      <div className="generator-loop-footer">
-        <span>{unlocked ? 'Next payout' : `Tier ${cfg.unlockTier}`}</span>
-        <strong>
-          {unlocked && phaseDetail ? `${phaseDetail.secRemaining}s` : 'Locked'}
-        </strong>
-      </div>
+
       <button className={upgradeBtnClass} disabled={!unlocked || !canBuy} onClick={onUpgrade} type="button">
-        {unlocked ? `Upgrade ${formatNumber(cost)}` : 'Locked'}
+        🪙 {unlocked ? formatNumber(cost) : '—'}
       </button>
     </div>
   );
@@ -1313,7 +1219,12 @@ function ProgressLoop({ label, percent, status, variant }: ProgressLoopProps) {
   const activeSegments = Math.ceil((normalizedPercent / 100) * segments.length);
   const isComplete = normalizedPercent >= 100;
   const isHot = normalizedPercent > 80 && !isComplete;
-  const statusText = isComplete && !status.endsWith('!') ? `${status}!` : status;
+  const statusText =
+    status.trim() === ''
+      ? ''
+      : isComplete && !status.endsWith('!')
+        ? `${status}!`
+        : status;
 
   useEffect(() => {
     if (normalizedPercent > previousPercentRef.current) {
@@ -1343,7 +1254,7 @@ function ProgressLoop({ label, percent, status, variant }: ProgressLoopProps) {
         <span className="loop-progress-name">{label}</span>
         <strong className="loop-progress-status">
           <span>{Math.round(normalizedPercent)}%</span>
-          {statusText}
+          {statusText !== '' ? <span>{statusText}</span> : null}
         </strong>
       </div>
       {variant === 'income' ? (
@@ -1361,17 +1272,7 @@ function ProgressLoop({ label, percent, status, variant }: ProgressLoopProps) {
   );
 }
 
-const getTierLoopStatus = (percent: number, nextTier: Tier | null): string => {
-  if (!nextTier) {
-    return 'Ready!';
-  }
 
-  if (percent >= 90) {
-    return 'Almost ready';
-  }
-
-  return `Next Tier ${nextTier}`;
-};
 
 const getEssenceLoopProgress = (gameState: GameState, essenceGain: number): LoopProgress => {
   const nextGain = essenceGain + 1;
@@ -1382,10 +1283,7 @@ const getEssenceLoopProgress = (gameState: GameState, essenceGain: number): Loop
 
   return {
     percent: ((coinsThisRun - currentBracket) / range) * 100,
-    status:
-      essenceGain > 0
-        ? `Next prestige +1 at ${formatNumber(nextBracket)} coins (this run)`
-        : `First essence at ${formatNumber(nextBracket)} coins this run`,
+    status: '',
   };
 };
 
@@ -1423,7 +1321,7 @@ function HatchScreen({ gameState, hatchResult, isHatching, onHatch, onCollection
           <span className="small-label">{excitingDrop ? `${hatchResult.definition.rarity} DROP` : `${EGG_LABELS[hatchResult.eggType]} opened`}</span>
           <h2>{hatchResult.definition.name}</h2>
           <RarityBadge rarity={hatchResult.definition.rarity} />
-          <p>{getCreatureIncomePerMinute(hatchResult.creature)} coins/min at level 1</p>
+          <p>Power {formatNumber(getCreatureIncomePerMinute(hatchResult.creature))} · level 1</p>
           <strong className="result-note">
             {hatchResult.firstEggBoostApplied
               ? 'First Egg Boost guaranteed Rare+'
@@ -1438,7 +1336,7 @@ function HatchScreen({ gameState, hatchResult, isHatching, onHatch, onCollection
       ) : (
         <div className="result-empty">
           <h2>{isHatching ? 'Cracking...' : 'Choose an egg'}</h2>
-          <p>{isHatching ? 'A new creature is waking up.' : `Drops are capped at Tier ${gameState.playerTier}, except your first boost.`}</p>
+          <p>{isHatching ? 'Cracking…' : 'Pick an egg'}</p>
         </div>
       )}
 
@@ -1492,16 +1390,13 @@ function CollectionScreen({
     <div className="screen-content collection-screen generators-screen">
       <div className="section-heading">
         <h2>Generators</h2>
-        <span>Tier {gameState.playerTier} · manage upgrades on Home</span>
       </div>
-      <p className="generators-lede">Each loop pays on a fixed timer. Higher Tier unlocks stronger generator layers.</p>
 
       <div className="generator-status-panel" aria-label="Generator status">
         {IDLE_GENERATOR_ORDER.map((id) => {
           const cfg = IDLE_GENERATORS[id];
           const unlocked = isIdleGeneratorUnlocked(gameState, id);
           const level = gameState.idleGenerators[id].level;
-          const phase = getIdleGeneratorLoopPhase(gameState, id, now);
           const perCycle = unlocked ? getIdleGeneratorCoinsPerCycle(gameState, id, now) : 0;
 
           return (
@@ -1511,9 +1406,7 @@ function CollectionScreen({
                 <span>Lv {level}</span>
               </div>
               <div className="generator-status-detail">
-                {unlocked && phase
-                  ? `+${formatNumber(perCycle)} / ${cfg.cycleMs / 1000}s · next in ${phase.secRemaining}s`
-                  : `Unlock at Tier ${cfg.unlockTier}`}
+                {unlocked ? `+${formatNumber(perCycle)}` : '—'}
               </div>
             </div>
           );
@@ -1525,20 +1418,16 @@ function CollectionScreen({
         onClick={() => onVaultOpenChange(!vaultOpen)}
         type="button"
       >
-        {vaultOpen ? 'Hide creature vault' : 'Show creature vault'}
-        {!vaultOpen && creatures.length > 0 ? ` · ${creatures.length} saved` : ''}
+        {vaultOpen ? 'Close' : 'Vault'}
       </button>
 
       {vaultOpen && (
         <div className="creature-vault-section">
           <div className="section-heading subheading">
-            <h3>Creature vault</h3>
-            <span>Legacy · does not drive main loops</span>
+            <h3>Vault</h3>
           </div>
           {creatures.length === 0 ? (
-            <p className="vault-empty-hint">
-              Empty for now. Use <strong>Hatch lab</strong> in More, or buy supplies in the Shop.
-            </p>
+            <p className="vault-empty-hint">Empty</p>
           ) : (
             <>
               <p className="vault-roster-meta">
@@ -1667,11 +1556,11 @@ function UpgradeScreen({ creature, coins, allCreatures, upgradeBurst, onUpgrade,
         </div>
         <div>
           <span>Now</span>
-          <strong>{currentIncome}/min</strong>
+          <strong>{formatNumber(currentIncome)}</strong>
         </div>
         <div>
           <span>Next</span>
-          <strong>{previewIncome}/min</strong>
+          <strong>{formatNumber(previewIncome)}</strong>
         </div>
       </div>
 
@@ -1736,7 +1625,6 @@ function ShopScreen({
     <div className="screen-content shop-screen">
       <div className="section-heading">
         <h2>Shop</h2>
-        <span>{gameState.premiumEggs} premium</span>
       </div>
 
       {boostRemainingMs > 0 && (
@@ -1759,16 +1647,16 @@ function ShopScreen({
         variant="coin"
         icon="🥚"
         title="Basic Egg"
-        subtitle={`Tier ${gameState.playerTier}`}
-        action={`${ECONOMY.basicEggCoinCost} coins`}
+        subtitle=""
+        action={`${ECONOMY.basicEggCoinCost} 🪙`}
         onClick={onBuyBasic}
       />
       <ShopItem
         variant="gem"
         icon="✨"
         title="Premium Egg"
-        subtitle="Better odds"
-        action={`${ECONOMY.premiumEggGemCost} gems`}
+        subtitle=""
+        action={`${ECONOMY.premiumEggGemCost} ✨`}
         onClick={onBuyPremium}
       />
       <div className="paid-products">
@@ -1817,7 +1705,7 @@ function ShopItem({ variant, icon, title, subtitle, action, badge, disabled = fa
       </span>
       <div>
         <strong>{title}</strong>
-        <span>{subtitle}</span>
+        {subtitle.trim() !== '' ? <span>{subtitle}</span> : null}
       </div>
       <button disabled={disabled} onClick={onClick} type="button">
         {action}
@@ -1863,7 +1751,6 @@ function MoreScreen({ soundEnabled, onNavigate, onToggleSound, onOpenHatch, onOp
     <div className="screen-content more-screen">
       <div className="section-heading">
         <h2>More</h2>
-        <span>Menu</span>
       </div>
       <div className="more-grid">
         <button className="more-card prestige" onClick={() => onNavigate('prestige')} type="button">

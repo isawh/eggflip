@@ -176,7 +176,7 @@ export const TIER_DEFINITIONS: Array<{
     activeSlots: 4,
     incomeRequired: 100,
     upgradesRequired: 6,
-    goalLabel: 'Reach 100 income/min',
+    goalLabel: 'Reach Epic tier',
   },
   {
     tier: 4,

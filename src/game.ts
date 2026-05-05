@@ -668,7 +668,7 @@ export const getTierProgress = (state: GameState): TierProgress => {
     nextLabel: nextDefinition.label,
     goalLabel: nextDefinition.goalLabel,
     progressLabel: useIncomeProgress
-      ? `${formatNumber(baseIncome)}/${formatNumber(nextDefinition.incomeRequired)} income/min`
+      ? `${formatNumber(baseIncome)}/${formatNumber(nextDefinition.incomeRequired)}`
       : `${upgrades}/${nextDefinition.upgradesRequired} upgrades`,
     progressPercent: Math.min(100, Math.max(0, Math.max(incomePercent, upgradePercent) * 100)),
   };

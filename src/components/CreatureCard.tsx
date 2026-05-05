@@ -62,7 +62,7 @@ export function CreatureCard({
       <RarityBadge rarity={definition.rarity} />
       <span className="card-badge-row">
         <span className="level-badge">Lv {creature.level}</span>
-        <span className="income-badge">{income}/min</span>
+        <span className="income-badge">⚡ {income}</span>
       </span>
     </button>
   );
