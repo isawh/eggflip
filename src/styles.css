@@ -3009,3 +3009,156 @@ button:disabled {
     max-width: 100% !important;
   }
 }
+
+@media (max-width: 430px) {
+  .home-screen {
+    gap: 12px;
+  }
+
+  .home-hero,
+  .tier-progress-card,
+  .cooldown-card,
+  .loop-progress-card {
+    position: relative;
+    z-index: 0;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin: 0;
+  }
+
+  .home-hero {
+    height: auto;
+    min-height: 0;
+    grid-template-rows: auto auto auto;
+    gap: 10px;
+    padding: 10px 12px 22px;
+    overflow: visible;
+  }
+
+  .hero-egg {
+    width: clamp(104px, 30vw, 126px);
+    height: clamp(104px, 30vw, 126px);
+  }
+
+  .hatch-action {
+    align-self: center;
+    margin: 0 0 4px;
+  }
+
+  .tier-progress-card,
+  .cooldown-card,
+  .loop-progress-card {
+    clear: both;
+  }
+}
+
+@media (max-width: 360px) {
+  .home-screen {
+    gap: 11px;
+  }
+
+  .home-hero {
+    height: auto;
+    min-height: 0;
+    grid-template-rows: auto auto auto;
+    gap: 9px;
+    padding: 8px 10px 20px;
+  }
+
+  .hero-egg {
+    width: clamp(94px, 31vw, 108px);
+    height: clamp(94px, 31vw, 108px);
+  }
+
+  .hatch-action {
+    margin-bottom: 4px;
+  }
+}
+
+@media (max-width: 430px) {
+  .home-screen {
+    gap: 16px;
+  }
+
+  .home-hero {
+    padding-bottom: 38px;
+    margin-bottom: 6px;
+  }
+
+  .hatch-action {
+    margin-bottom: 12px;
+  }
+
+  .tier-progress-card {
+    margin-top: 0;
+  }
+}
+
+@media (max-width: 360px) {
+  .home-screen {
+    gap: 15px;
+  }
+
+  .home-hero {
+    padding-bottom: 34px;
+    margin-bottom: 6px;
+  }
+
+  .hatch-action {
+    margin-bottom: 10px;
+  }
+}
+
+@media (max-width: 430px) {
+  .home-screen {
+    gap: 14px !important;
+  }
+
+  .home-hero {
+    height: auto !important;
+    min-height: 0 !important;
+    grid-template-rows: auto auto auto !important;
+    align-content: start !important;
+    padding-bottom: 28px !important;
+    margin-bottom: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .hero-egg {
+    width: clamp(96px, 28vw, 116px) !important;
+    height: clamp(96px, 28vw, 116px) !important;
+  }
+
+  .hatch-action {
+    margin-bottom: 0 !important;
+    transform: translateY(-10px) !important;
+    box-shadow:
+      0 0 0 4px rgba(255, 255, 255, 0.34),
+      0 4px 0 var(--eggflip-border-color),
+      0 8px 0 rgba(19, 34, 61, 0.12) !important;
+  }
+
+  .tier-progress-card {
+    margin-top: 0 !important;
+  }
+}
+
+@media (max-width: 360px) {
+  .home-screen {
+    gap: 13px !important;
+  }
+
+  .home-hero {
+    padding-bottom: 24px !important;
+  }
+
+  .hero-egg {
+    width: clamp(88px, 30vw, 100px) !important;
+    height: clamp(88px, 30vw, 100px) !important;
+  }
+
+  .hatch-action {
+    transform: translateY(-8px) !important;
+  }
+}
