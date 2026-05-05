@@ -1082,8 +1082,7 @@ button:disabled {
   opacity: 0.62;
 }
 
-.feedback-toast,
-.floating-coins {
+.feedback-toast {
   position: fixed;
   left: 50%;
   z-index: 9;
@@ -1104,18 +1103,6 @@ button:disabled {
   font-size: 14px;
   font-weight: 950;
   animation: toast-in 180ms ease-out;
-}
-
-.floating-coins {
-  top: calc(156px + env(safe-area-inset-top, 0px) + var(--eggflip-safe-area-top) + var(--eggflip-content-safe-area-top));
-  width: auto;
-  min-width: 144px;
-  padding: 10px 14px;
-  background: linear-gradient(180deg, #fff176, #ffb22e);
-  color: #13223d;
-  font-size: 16px;
-  font-weight: 1000;
-  animation: float-coins 1250ms ease-out forwards;
 }
 
 .hatch-screen {
@@ -2750,20 +2737,6 @@ button:disabled {
   to {
     opacity: 1;
     transform: translate(-50%, 0);
-  }
-}
-
-@keyframes float-coins {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, 12px) scale(0.96);
-  }
-  15% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -36px) scale(1.08);
   }
 }
 

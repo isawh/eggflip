@@ -90,7 +90,6 @@ function App() {
   const [isHatching, setIsHatching] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
-  const [floatingCoins, setFloatingCoins] = useState<string | null>(null);
   const [offlineCoins, setOfflineCoins] = useState(sessionStart.offlineCoins);
   const [upgradeBurst, setUpgradeBurst] = useState(false);
   const [purchasingProductId, setPurchasingProductId] = useState<ProductId | null>(null);
@@ -98,7 +97,6 @@ function App() {
   const [telegramDetected, setTelegramDetected] = useState(() => isTelegram());
   const [invitePopupOpen, setInvitePopupOpen] = useState(false);
   const feedbackTimerRef = useRef<number | null>(null);
-  const coinTimerRef = useRef<number | null>(null);
   const upgradeTimerRef = useRef<number | null>(null);
 
   const showFeedback = (message: string) => {
@@ -124,23 +122,6 @@ function App() {
     const next = !soundEnabled;
     setSoundEnabled(next);
     setSoundEnabledState(next);
-  };
-
-  const showFloatingCoins = (amount: number) => {
-    if (amount <= 0) {
-      return;
-    }
-
-    setFloatingCoins(`+${formatNumber(amount)}`);
-
-    if (coinTimerRef.current) {
-      window.clearTimeout(coinTimerRef.current);
-    }
-
-    coinTimerRef.current = window.setTimeout(() => {
-      setFloatingCoins(null);
-      coinTimerRef.current = null;
-    }, 1250);
   };
 
   useEffect(() => {
@@ -172,9 +153,6 @@ function App() {
       setNow(current);
       setGameState((state) => {
         const next = applyPassiveIncome(state, current);
-        if (next.coins > state.coins) {
-          showFloatingCoins(next.coins - state.coins);
-        }
         return next;
       });
     }, 1000);
@@ -186,9 +164,6 @@ function App() {
     return () => {
       if (feedbackTimerRef.current) {
         window.clearTimeout(feedbackTimerRef.current);
-      }
-      if (coinTimerRef.current) {
-        window.clearTimeout(coinTimerRef.current);
       }
       if (upgradeTimerRef.current) {
         window.clearTimeout(upgradeTimerRef.current);
@@ -384,9 +359,6 @@ function App() {
     updateGameState((state) => applyDailyReward(state, reward));
     playSound('reward_claim');
     showFeedback('Daily reward claimed');
-    if (reward.type === 'coins') {
-      showFloatingCoins(reward.amount);
-    }
   };
 
   const simulateFriendJoined = () => {
@@ -451,10 +423,6 @@ function App() {
       playSound('purchase_success');
       triggerHapticNotification('success');
       showFeedback(`${product.title} unlocked`);
-
-      if (product.id === PRODUCT_IDS.starterPack) {
-        showFloatingCoins(ECONOMY.starterPackCoins);
-      }
     } catch {
       showErrorFeedback('Purchase failed');
     } finally {
@@ -499,7 +467,6 @@ function App() {
         </header>
 
         {feedbackMessage && <div className="feedback-toast">{feedbackMessage}</div>}
-        {floatingCoins && <div className="floating-coins">{floatingCoins} coins</div>}
 
         <section className="screen-panel">
           {activeScreen === 'home' && (
@@ -593,7 +560,6 @@ function App() {
               className="primary-action"
               onClick={() => {
                 playSound('coin_collect');
-                showFloatingCoins(offlineCoins);
                 setOfflineCoins(0);
               }}
               type="button"
@@ -859,7 +825,6 @@ function HomeScreen({
   const freeReady = now >= freeReadyAt;
   const freeCooldown = getCooldownLabel(freeReadyAt - now);
   const tierProgress = getTierProgress(gameState);
-  const eggLoopProgress = getEggLoopProgress(gameState, totalEggs, freeReadyAt, now);
   const incomeLoopProgress = getIncomeLoopProgress(totalIncome);
   const essenceGain = getPrestigeEssenceGain(gameState);
   const essenceLoopProgress = getEssenceLoopProgress(gameState, essenceGain);
@@ -901,12 +866,6 @@ function HomeScreen({
       </div>
 
       <div className="idle-loop-dashboard" aria-label="Idle progress loops">
-        <ProgressLoop
-          label="Egg Loop"
-          percent={eggLoopProgress.percent}
-          status={eggLoopProgress.status}
-          variant="egg"
-        />
         <ProgressLoop
           label="Tier Loop"
           percent={tierProgress.progressPercent}
@@ -1005,20 +964,6 @@ function ProgressLoop({ label, percent, status, variant }: ProgressLoopProps) {
     </div>
   );
 }
-
-const getEggLoopProgress = (gameState: GameState, totalEggs: number, freeReadyAt: number, now: number): LoopProgress => {
-  if (totalEggs > 0 || now >= freeReadyAt) {
-    return { percent: 100, status: 'Ready!' };
-  }
-
-  const cooldownDuration = Math.max(1, freeReadyAt - gameState.lastFreeEggAt);
-  const elapsed = Math.max(0, now - gameState.lastFreeEggAt);
-  const percent = (elapsed / cooldownDuration) * 100;
-  return {
-    percent,
-    status: percent >= 85 ? 'Almost ready' : `Next in ${getCooldownLabel(freeReadyAt - now)}`,
-  };
-};
 
 const getTierLoopStatus = (percent: number, nextTier: Tier | null): string => {
   if (!nextTier) {
