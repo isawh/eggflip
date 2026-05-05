@@ -859,6 +859,8 @@ function HomeScreen({
   const freeReady = now >= freeReadyAt;
   const freeCooldown = getCooldownLabel(freeReadyAt - now);
   const tierProgress = getTierProgress(gameState);
+  const eggLoopProgress = getEggLoopProgress(gameState, totalEggs, freeReadyAt, now);
+  const incomeLoopProgress = getIncomeLoopProgress(totalIncome);
   const essenceGain = getPrestigeEssenceGain(gameState);
   const showEssenceAccess = gameState.essence > 0 || gameState.prestigeCount > 0 || essenceGain > 0;
 
@@ -882,6 +884,27 @@ function HomeScreen({
         <button className="hatch-action" onClick={onHatch} type="button">
           {totalEggs > 0 ? 'HATCH' : 'GET EGGS'}
         </button>
+      </div>
+
+      <div className="loop-progress-card" aria-label="Progress loops">
+        <ProgressLoop
+          label="Egg progress"
+          percent={eggLoopProgress.percent}
+          status={eggLoopProgress.status}
+          variant="egg"
+        />
+        <ProgressLoop
+          label="Tier progress"
+          percent={tierProgress.progressPercent}
+          status={getTierLoopStatus(tierProgress.progressPercent, tierProgress.nextTier)}
+          variant="tier"
+        />
+        <ProgressLoop
+          label="Income progress"
+          percent={incomeLoopProgress.percent}
+          status={incomeLoopProgress.status}
+          variant="income"
+        />
       </div>
 
       <div className="tier-progress-card">
@@ -927,6 +950,117 @@ function HomeScreen({
     </div>
   );
 }
+
+interface LoopProgress {
+  percent: number;
+  status: string;
+}
+
+interface ProgressLoopProps extends LoopProgress {
+  label: string;
+  variant: 'egg' | 'tier' | 'income';
+}
+
+function ProgressLoop({ label, percent, status, variant }: ProgressLoopProps) {
+  const normalizedPercent = clampProgressPercent(percent);
+  const previousPercentRef = useRef(normalizedPercent);
+  const growTimerRef = useRef<number | null>(null);
+  const [isGrowing, setIsGrowing] = useState(false);
+  const segments = Array.from({ length: 8 }, (_, index) => index);
+  const activeSegments = Math.ceil((normalizedPercent / 100) * segments.length);
+  const isComplete = normalizedPercent >= 100;
+
+  useEffect(() => {
+    if (normalizedPercent > previousPercentRef.current) {
+      setIsGrowing(true);
+      if (growTimerRef.current) {
+        window.clearTimeout(growTimerRef.current);
+      }
+      growTimerRef.current = window.setTimeout(() => {
+        setIsGrowing(false);
+        growTimerRef.current = null;
+      }, 520);
+    }
+
+    previousPercentRef.current = normalizedPercent;
+
+    return () => {
+      if (growTimerRef.current) {
+        window.clearTimeout(growTimerRef.current);
+        growTimerRef.current = null;
+      }
+    };
+  }, [normalizedPercent]);
+
+  return (
+    <div className={`loop-progress-row ${variant} ${isComplete ? 'complete' : ''} ${isGrowing ? 'is-growing' : ''}`}>
+      <div className="loop-progress-header">
+        <span>{label}</span>
+        <strong>{Math.round(normalizedPercent)}% · {status}</strong>
+      </div>
+      {variant === 'income' ? (
+        <div className="segmented-progress-track" aria-label={label}>
+          {segments.map((segment) => (
+            <span className={segment < activeSegments ? 'filled' : ''} key={segment} />
+          ))}
+        </div>
+      ) : (
+        <div className="loop-progress-track" aria-label={label}>
+          <span style={{ width: `${normalizedPercent}%` }} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+const getEggLoopProgress = (gameState: GameState, totalEggs: number, freeReadyAt: number, now: number): LoopProgress => {
+  if (totalEggs > 0 || now >= freeReadyAt) {
+    return { percent: 100, status: 'Ready!' };
+  }
+
+  const cooldownDuration = Math.max(1, freeReadyAt - gameState.lastFreeEggAt);
+  const elapsed = Math.max(0, now - gameState.lastFreeEggAt);
+  const percent = (elapsed / cooldownDuration) * 100;
+  return {
+    percent,
+    status: percent >= 85 ? 'Almost ready' : `Next in ${getCooldownLabel(freeReadyAt - now)}`,
+  };
+};
+
+const getTierLoopStatus = (percent: number, nextTier: Tier | null): string => {
+  if (!nextTier) {
+    return 'Ready!';
+  }
+
+  if (percent >= 90) {
+    return 'Almost ready';
+  }
+
+  return `Next Tier ${nextTier}`;
+};
+
+const INCOME_LOOP_MILESTONES = [10, 25, 50, 100, 250, 500, 1_000, 2_500, 5_000, 10_000];
+
+const getIncomeLoopProgress = (totalIncome: number): LoopProgress => {
+  const nextMilestone =
+    INCOME_LOOP_MILESTONES.find((milestone) => totalIncome < milestone) ??
+    Math.ceil((totalIncome + 1) / 10_000) * 10_000;
+  const previousMilestone =
+    [...INCOME_LOOP_MILESTONES].reverse().find((milestone) => milestone < nextMilestone && milestone <= totalIncome) ?? 0;
+  const range = Math.max(1, nextMilestone - previousMilestone);
+
+  return {
+    percent: ((totalIncome - previousMilestone) / range) * 100,
+    status:
+      totalIncome >= nextMilestone
+        ? 'Ready!'
+        : nextMilestone - totalIncome <= Math.max(5, range * 0.12)
+          ? 'Almost ready'
+          : `Next at ${formatNumber(nextMilestone)}/min`,
+  };
+};
+
+const clampProgressPercent = (value: number): number => Math.min(100, Math.max(0, value));
 
 interface HatchScreenProps {
   gameState: GameState;
