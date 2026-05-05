@@ -2737,3 +2737,42 @@ button:disabled {
     line-height: 1;
   }
 }
+
+@media (max-width: 430px) {
+  .bottom-nav {
+    display: flex !important;
+    width: calc(100% - 24px) !important;
+    max-width: calc(100% - 24px) !important;
+    left: 12px !important;
+    right: 12px !important;
+    grid-template-columns: none !important;
+    gap: 4px !important;
+    padding: 5px !important;
+    box-sizing: border-box !important;
+    transform: none !important;
+  }
+
+  .nav-item {
+    flex: 1 1 0 !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    padding: 6px 2px !important;
+    gap: 1px !important;
+    box-sizing: border-box !important;
+  }
+
+  .nav-item span:first-child {
+    font-size: 17px !important;
+    line-height: 1 !important;
+  }
+
+  .nav-item span:last-child {
+    font-size: 9px !important;
+    line-height: 1.05 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 100% !important;
+  }
+}
