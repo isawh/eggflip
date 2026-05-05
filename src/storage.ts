@@ -8,10 +8,18 @@ import {
   STARTING_TIER,
   TIER_DEFINITIONS,
 } from './constants';
-import type { DailyRewardState, EggType, GameState, PrestigeUpgrades, ReferralMilestoneId, Tier } from './types';
+import type {
+  DailyRewardState,
+  EggType,
+  GameState,
+  IdleGeneratorId,
+  PrestigeUpgrades,
+  ReferralMilestoneId,
+  Tier,
+} from './types';
 
 const STORAGE_KEY = 'eggflip-game-state-v1';
-const TEMP_DEV_RESET_GAME_STATE = true;
+const TEMP_DEV_RESET_GAME_STATE = false;
 
 const defaultEggs = (): Record<EggType, number> => ({
   free: STARTING_FREE_EGGS,
@@ -37,10 +45,16 @@ export const createInitialGameState = (now = Date.now()): GameState => ({
   eggs: defaultEggs(),
   creatures: [],
   selectedCreatureUid: null,
+  mainLoopLastPayoutAt: now,
   lastIncomeAt: now,
   lastActiveAt: now,
   lastFreeEggAt: now,
   incomeBoostUntil: null,
+  idleGenerators: {
+    basic: { level: 1, lastCollectedAt: now },
+    advanced: { level: 1, lastCollectedAt: now },
+    elite: { level: 1, lastCollectedAt: now },
+  },
   playerTier: STARTING_TIER,
   maxCreatureSlots: STARTING_MAX_CREATURE_SLOTS,
   referralCode: createReferralCode(),
@@ -97,6 +111,8 @@ export const loadGameState = (): GameState => {
     const claimedReferralMilestones = Array.isArray(saved.claimedReferralMilestones)
       ? saved.claimedReferralMilestones.filter((id): id is ReferralMilestoneId => validMilestoneIds.has(id as ReferralMilestoneId))
       : base.claimedReferralMilestones;
+    const idleGenerators = mergeIdleGenerators(saved.idleGenerators, base.idleGenerators);
+    const mainLoopLastPayoutAt = asTimestamp(saved.mainLoopLastPayoutAt, base.mainLoopLastPayoutAt);
 
     return {
       ...base,
@@ -116,6 +132,8 @@ export const loadGameState = (): GameState => {
       creatures: savedCreatures,
       lastIncomeAt,
       lastActiveAt,
+      idleGenerators,
+      mainLoopLastPayoutAt,
       lastFreeEggAt: asTimestamp(saved.lastFreeEggAt, base.lastFreeEggAt),
       incomeBoostUntil: asNullableTimestamp(saved.incomeBoostUntil),
       playerTier,
@@ -150,6 +168,36 @@ export const saveGameState = (state: GameState) => {
   }
 
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+};
+
+const IDLE_GENERATOR_IDS: IdleGeneratorId[] = ['basic', 'advanced', 'elite'];
+
+const mergeIdleGenerators = (saved: unknown, base: GameState['idleGenerators']): GameState['idleGenerators'] => {
+  if (typeof saved !== 'object' || saved === null) {
+    return base;
+  }
+
+  const incoming = saved as Partial<Record<IdleGeneratorId, unknown>>;
+  let next: GameState['idleGenerators'] = { ...base };
+
+  for (const id of IDLE_GENERATOR_IDS) {
+    const entry = incoming[id];
+    if (typeof entry !== 'object' || entry === null) {
+      continue;
+    }
+
+    const row = entry as { level?: unknown; lastCollectedAt?: unknown };
+
+    next = {
+      ...next,
+      [id]: {
+        level: Math.max(1, asCount(row.level, next[id].level)),
+        lastCollectedAt: asTimestamp(row.lastCollectedAt, next[id].lastCollectedAt),
+      },
+    };
+  }
+
+  return next;
 };
 
 const asCount = (value: unknown, fallback: number): number =>

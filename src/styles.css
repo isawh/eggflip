@@ -303,6 +303,46 @@ h2 {
   align-items: stretch;
 }
 
+.screen-content.home-screen {
+  flex: 1;
+  min-height: 0;
+  gap: 6px;
+  overflow-y: hidden;
+  padding-bottom: 4px;
+}
+
+.home-screen .home-stats {
+  gap: 5px;
+}
+
+.home-screen .home-stats .stat-pill {
+  min-height: 52px;
+  padding: 5px 4px;
+}
+
+.generator-upgrade-btn {
+  width: 100%;
+  min-height: 32px;
+  margin-top: 2px;
+  padding: 0 10px;
+  border: 2px solid var(--eggflip-border-color);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #bfffc8, #75ff9f);
+  box-shadow: 0 3px 0 var(--eggflip-border-color), inset 0 2px 0 rgba(255, 255, 255, 0.72);
+  color: var(--eggflip-border-color);
+  font-size: 11px;
+  font-weight: 1000;
+  cursor: pointer;
+  transition: transform 120ms ease, filter 120ms ease;
+}
+
+.generator-upgrade-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  transform: none;
+  filter: grayscale(0.2);
+}
+
 .home-hero {
   min-height: clamp(214px, 31dvh, 248px);
   padding: 12px 14px 18px;
@@ -417,6 +457,48 @@ h2 {
   font-weight: 1000;
   line-height: 1;
   box-shadow: 0 3px 0 var(--eggflip-border-color), inset 0 2px 0 rgba(255, 255, 255, 0.6);
+}
+
+.home-screen .income-cycle-card {
+  min-height: 128px;
+  padding: 8px 10px;
+  gap: 10px;
+  grid-template-columns: 108px minmax(0, 1fr);
+}
+
+.home-screen .income-cycle-ring {
+  width: 102px;
+}
+
+.home-screen .generator-loop-grid {
+  gap: 5px;
+}
+
+.home-screen .generator-loop-card {
+  padding: 6px 8px;
+  gap: 4px;
+}
+
+.home-screen .generator-loop-track {
+  height: 11px;
+}
+
+.home-screen .generator-loop-header strong,
+.home-screen .generator-loop-footer strong {
+  font-size: 10px;
+}
+
+.home-screen .generator-loop-header span,
+.home-screen .generator-loop-footer span {
+  font-size: 9px;
+}
+
+.home-screen .progress-goal-grid {
+  gap: 5px;
+}
+
+.home-screen .progress-goal-grid .loop-progress-row {
+  padding: 5px 7px;
 }
 
 .income-cycle-card {
@@ -596,6 +678,28 @@ h2 {
 .generator-loop-card.basic .generator-loop-track span {
   background: linear-gradient(90deg, #75ff9f, #fff176);
   box-shadow: 0 0 10px rgba(117, 255, 159, 0.36);
+}
+
+.generator-loop-card.advanced {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(226, 244, 255, 0.18)),
+    linear-gradient(145deg, #eaf8ff, #dff0ff);
+}
+
+.generator-loop-card.advanced .generator-loop-track span {
+  background: linear-gradient(90deg, #70d6ff, #b8e6ff);
+  box-shadow: 0 0 8px rgba(112, 214, 255, 0.32);
+}
+
+.generator-loop-card.elite {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(241, 230, 255, 0.16)),
+    linear-gradient(145deg, #f4efff, #ffe8f3);
+}
+
+.generator-loop-card.elite .generator-loop-track span {
+  background: linear-gradient(90deg, #c79cff, #ff7faf);
+  box-shadow: 0 0 10px rgba(159, 92, 255, 0.32);
 }
 
 .generator-loop-card.rare {

@@ -3,6 +3,9 @@ import {
   DAILY_REWARDS,
   ECONOMY,
   FREE_EGG_COOLDOWN_MS,
+  IDLE_GENERATORS,
+  MAIN_IDLE_BASE_COINS,
+  MAIN_IDLE_CYCLE_MS,
   MAX_OFFLINE_EARNINGS_MS,
   MILLISECONDS_PER_MINUTE,
   NORMAL_EGG_RARITY_CHANCES,
@@ -15,7 +18,17 @@ import {
   STREAK_RESET_MS,
   TIER_DEFINITIONS,
 } from './constants';
-import type { CreatureDefinition, DailyReward, EggType, GameState, OwnedCreature, PrestigeUpgradeId, Rarity, Tier } from './types';
+import type {
+  CreatureDefinition,
+  DailyReward,
+  EggType,
+  GameState,
+  IdleGeneratorId,
+  OwnedCreature,
+  PrestigeUpgradeId,
+  Rarity,
+  Tier,
+} from './types';
 
 const fallbackCreature = CREATURES[0];
 
@@ -55,12 +68,6 @@ export const getCreatureIncomePerMinute = (creature: OwnedCreature): number => {
 export const getActiveCreatures = (state: GameState): OwnedCreature[] =>
   state.creatures.slice(0, state.maxCreatureSlots);
 
-export const getBaseIncomePerMinute = (state: GameState): number =>
-  Math.round(
-    getActiveCreatures(state).reduce((total, creature) => total + getCreatureIncomePerMinute(creature), 0) *
-      getPrestigeIncomeMultiplier(state),
-  );
-
 export const isIncomeBoostActive = (state: GameState, now = Date.now()): boolean =>
   Boolean(state.incomeBoostUntil && state.incomeBoostUntil > now);
 
@@ -70,8 +77,87 @@ export const getIncomeBoostMultiplier = (state: GameState, now = Date.now()): nu
 export const getIncomeBoostRemainingMs = (state: GameState, now = Date.now()): number =>
   Math.max(0, (state.incomeBoostUntil ?? 0) - now);
 
-export const getTotalIncomePerMinute = (state: GameState, now = Date.now()): number =>
-  getBaseIncomePerMinute(state) * getIncomeBoostMultiplier(state, now);
+export const isIdleGeneratorUnlocked = (state: GameState, id: IdleGeneratorId): boolean =>
+  state.playerTier >= IDLE_GENERATORS[id].unlockTier;
+
+export const getIdleGeneratorCoinsPerCycle = (state: GameState, id: IdleGeneratorId, now: number): number => {
+  if (!isIdleGeneratorUnlocked(state, id)) {
+    return 0;
+  }
+
+  const cfg = IDLE_GENERATORS[id];
+  const level = state.idleGenerators[id].level;
+  const raw = cfg.baseCoinsPerCycle * Math.max(1, level);
+  return Math.round(raw * getPrestigeIncomeMultiplier(state) * getIncomeBoostMultiplier(state, now));
+};
+
+export const getMainLoopCoinsPerCycle = (state: GameState, now: number): number => {
+  const tierMult = 1 + 0.07 * (state.playerTier - 1);
+
+  return Math.round(
+    MAIN_IDLE_BASE_COINS * tierMult * getPrestigeIncomeMultiplier(state) * getIncomeBoostMultiplier(state, now),
+  );
+};
+
+export const getMainIdleProgressPercent = (state: GameState, now: number): number => {
+  const elapsed = Math.max(0, now - state.mainLoopLastPayoutAt);
+  return Math.min(100, ((elapsed % MAIN_IDLE_CYCLE_MS) / MAIN_IDLE_CYCLE_MS) * 100);
+};
+
+export const getIdleGeneratorProgressPercent = (state: GameState, id: IdleGeneratorId, now: number): number => {
+  if (!isIdleGeneratorUnlocked(state, id)) {
+    return 0;
+  }
+
+  const cfg = IDLE_GENERATORS[id];
+  const elapsed = Math.max(0, now - state.idleGenerators[id].lastCollectedAt);
+  return Math.min(100, ((elapsed % cfg.cycleMs) / cfg.cycleMs) * 100);
+};
+
+export const getGeneratorUpgradeCost = (state: GameState, id: IdleGeneratorId): number => {
+  const cfg = IDLE_GENERATORS[id];
+  const level = state.idleGenerators[id].level;
+  return Math.round(cfg.upgradeBaseCost * Math.pow(cfg.upgradeCostMultiplier, Math.max(0, level - 1)));
+};
+
+export const canAffordGeneratorUpgrade = (state: GameState, id: IdleGeneratorId): boolean =>
+  isIdleGeneratorUnlocked(state, id) && state.coins >= getGeneratorUpgradeCost(state, id);
+
+export const applyGeneratorUpgrade = (state: GameState, id: IdleGeneratorId): GameState => {
+  if (!canAffordGeneratorUpgrade(state, id)) {
+    return state;
+  }
+
+  const cost = getGeneratorUpgradeCost(state, id);
+  const previous = state.idleGenerators[id];
+
+  return {
+    ...state,
+    coins: state.coins - cost,
+    idleGenerators: {
+      ...state.idleGenerators,
+      [id]: { ...previous, level: previous.level + 1 },
+    },
+  };
+};
+
+/** Unlocked generators + central loop rate (already includes prestige + referral income boost multipliers). */
+export const getBaseIncomePerMinute = (state: GameState, now = Date.now()): number => {
+  let perMinute = 0;
+  for (const id of Object.keys(IDLE_GENERATORS) as IdleGeneratorId[]) {
+    if (!isIdleGeneratorUnlocked(state, id)) {
+      continue;
+    }
+    const cfg = IDLE_GENERATORS[id];
+    const coins = getIdleGeneratorCoinsPerCycle(state, id, now);
+    perMinute += (coins / cfg.cycleMs) * MILLISECONDS_PER_MINUTE;
+  }
+  const mainCoins = getMainLoopCoinsPerCycle(state, now);
+  perMinute += (mainCoins / MAIN_IDLE_CYCLE_MS) * MILLISECONDS_PER_MINUTE;
+  return Math.round(perMinute);
+};
+
+export const getTotalIncomePerMinute = (state: GameState, now = Date.now()): number => getBaseIncomePerMinute(state, now);
 
 export const getUpgradeCost = (creature: OwnedCreature): number => {
   const scaled = ECONOMY.upgradeBaseCost * Math.pow(creature.level, ECONOMY.upgradeLevelExponent);
@@ -145,66 +231,97 @@ export const createOwnedCreature = (definition: CreatureDefinition, now = Date.n
   hatchedAt: now,
 });
 
+const shiftIdleTimers = (state: GameState, deltaMs: number): GameState =>
+  deltaMs <= 0
+    ? state
+    : {
+        ...state,
+        mainLoopLastPayoutAt: state.mainLoopLastPayoutAt + deltaMs,
+        idleGenerators: {
+          basic: {
+            ...state.idleGenerators.basic,
+            lastCollectedAt: state.idleGenerators.basic.lastCollectedAt + deltaMs,
+          },
+          advanced: {
+            ...state.idleGenerators.advanced,
+            lastCollectedAt: state.idleGenerators.advanced.lastCollectedAt + deltaMs,
+          },
+          elite: {
+            ...state.idleGenerators.elite,
+            lastCollectedAt: state.idleGenerators.elite.lastCollectedAt + deltaMs,
+          },
+        },
+      };
+
+/** Apply all deterministic cycle payouts with timestamps capped at `until` (coins only; does not bump lastActiveAt). */
+export const accrueIdlePayoutsAt = (state: GameState, until: number): GameState => {
+  let next = { ...state };
+  const mainTicks = Math.floor((until - next.mainLoopLastPayoutAt) / MAIN_IDLE_CYCLE_MS);
+
+  if (mainTicks > 0) {
+    const per = getMainLoopCoinsPerCycle(next, until);
+    const total = mainTicks * per;
+    next = {
+      ...next,
+      coins: next.coins + total,
+      totalCoinsEarned: next.totalCoinsEarned + total,
+      mainLoopLastPayoutAt: next.mainLoopLastPayoutAt + mainTicks * MAIN_IDLE_CYCLE_MS,
+    };
+  }
+
+  for (const id of Object.keys(IDLE_GENERATORS) as IdleGeneratorId[]) {
+    if (!isIdleGeneratorUnlocked(next, id)) {
+      continue;
+    }
+
+    const cfg = IDLE_GENERATORS[id];
+    const gen = next.idleGenerators[id];
+    const ticks = Math.floor((until - gen.lastCollectedAt) / cfg.cycleMs);
+
+    if (ticks <= 0) {
+      continue;
+    }
+
+    const perCycle = getIdleGeneratorCoinsPerCycle(next, id, until);
+    const total = ticks * perCycle;
+
+    next = {
+      ...next,
+      coins: next.coins + total,
+      totalCoinsEarned: next.totalCoinsEarned + total,
+      idleGenerators: {
+        ...next.idleGenerators,
+        [id]: { ...gen, lastCollectedAt: gen.lastCollectedAt + ticks * cfg.cycleMs },
+      },
+    };
+  }
+
+  return next;
+};
+
 export const applyPassiveIncome = (state: GameState, now = Date.now()): GameState => {
-  const incomePerMinute = getTotalIncomePerMinute(state, now);
+  const simulateUntil = Math.min(now, state.lastActiveAt + MAX_OFFLINE_EARNINGS_MS);
+  let next = accrueIdlePayoutsAt(state, simulateUntil);
+  const remainder = Math.max(0, now - simulateUntil);
 
-  if (incomePerMinute <= 0) {
-    return {
-      ...state,
-      lastActiveAt: now,
-      lastIncomeAt: now,
-    };
+  if (remainder > 0) {
+    next = shiftIdleTimers(next, remainder);
   }
 
-  const earnedCoins = calculateEarnedCoins(state, state.lastIncomeAt, now);
-
-  if (earnedCoins <= 0) {
-    return {
-      ...state,
-      lastActiveAt: now,
-    };
-  }
-
-  return {
-    ...state,
-    coins: state.coins + earnedCoins,
-    totalCoinsEarned: state.totalCoinsEarned + earnedCoins,
-    lastIncomeAt: now,
-    lastActiveAt: now,
-  };
+  return applyTierProgression({ ...next, lastActiveAt: now, lastIncomeAt: now });
 };
 
 export const applyOfflineEarnings = (
   state: GameState,
   now = Date.now(),
 ): { state: GameState; earnedCoins: number; elapsedMs: number } => {
-  const incomePerMinute = getTotalIncomePerMinute(state, now);
+  const beforeCoins = state.coins;
   const elapsedMs = Math.max(0, now - state.lastActiveAt);
-  const eligibleElapsedMs = Math.min(elapsedMs, MAX_OFFLINE_EARNINGS_MS);
-
-  if (incomePerMinute <= 0 || eligibleElapsedMs <= 0) {
-    return {
-      state: {
-        ...state,
-        lastActiveAt: now,
-        lastIncomeAt: now,
-      },
-      earnedCoins: 0,
-      elapsedMs,
-    };
-  }
-
-  const earnedCoins = calculateEarnedCoins(state, now - eligibleElapsedMs, now);
+  const merged = applyPassiveIncome(state, now);
 
   return {
-    state: {
-      ...state,
-      coins: state.coins + earnedCoins,
-      totalCoinsEarned: state.totalCoinsEarned + earnedCoins,
-      lastActiveAt: now,
-      lastIncomeAt: now,
-    },
-    earnedCoins,
+    state: merged,
+    earnedCoins: merged.coins - beforeCoins,
     elapsedMs,
   };
 };
@@ -330,7 +447,10 @@ export interface TierProgress {
 }
 
 export const getTotalUpgradeCount = (state: GameState): number =>
-  state.creatures.reduce((total, creature) => total + Math.max(0, creature.level - 1), 0);
+  (Object.keys(IDLE_GENERATORS) as IdleGeneratorId[]).reduce(
+    (sum, id) => sum + Math.max(0, state.idleGenerators[id].level - 1),
+    0,
+  );
 
 export const getProgressionTier = (state: GameState): Tier => {
   const baseIncome = getBaseIncomePerMinute(state);
@@ -465,6 +585,12 @@ export const applyPrestigeReset = (state: GameState, now = Date.now()): GameStat
     },
     creatures: [],
     selectedCreatureUid: null,
+    mainLoopLastPayoutAt: now,
+    idleGenerators: {
+      basic: { level: 1, lastCollectedAt: now },
+      advanced: { level: 1, lastCollectedAt: now },
+      elite: { level: 1, lastCollectedAt: now },
+    },
     lastIncomeAt: now,
     lastActiveAt: now,
     lastFreeEggAt: now,
@@ -501,29 +627,3 @@ const createId = (): string => {
 
 const clampStreakDay = (day: number): number => Math.min(7, Math.max(1, Math.floor(day)));
 
-const calculateEarnedCoins = (state: GameState, from: number, to: number): number => {
-  const elapsedMs = Math.max(0, to - from);
-  const baseIncomePerMinute = getBaseIncomePerMinute(state);
-
-  if (elapsedMs <= 0 || baseIncomePerMinute <= 0) {
-    return 0;
-  }
-
-  const boostUntil = state.incomeBoostUntil ?? 0;
-
-  if (boostUntil <= from) {
-    return Math.floor((elapsedMs / MILLISECONDS_PER_MINUTE) * baseIncomePerMinute);
-  }
-
-  if (boostUntil >= to) {
-    return Math.floor((elapsedMs / MILLISECONDS_PER_MINUTE) * baseIncomePerMinute * 2);
-  }
-
-  const boostedMs = Math.max(0, boostUntil - from);
-  const normalMs = Math.max(0, to - boostUntil);
-  const earned =
-    ((boostedMs / MILLISECONDS_PER_MINUTE) * baseIncomePerMinute * 2) +
-    ((normalMs / MILLISECONDS_PER_MINUTE) * baseIncomePerMinute);
-
-  return Math.floor(earned);
-};

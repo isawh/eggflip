@@ -8,6 +8,13 @@ export type PrestigeUpgradeId = 'income' | 'slot' | 'cooldown' | 'dropChance';
 
 export type PrestigeUpgrades = Record<PrestigeUpgradeId, number>;
 
+export type IdleGeneratorId = 'basic' | 'advanced' | 'elite';
+
+export interface IdleGeneratorState {
+  level: number;
+  lastCollectedAt: number;
+}
+
 export type Screen =
   | 'home'
   | 'hatch'
@@ -80,10 +87,12 @@ export interface GameState {
   eggs: Record<EggType, number>;
   creatures: OwnedCreature[];
   selectedCreatureUid: string | null;
+  mainLoopLastPayoutAt: number;
   lastIncomeAt: number;
   lastActiveAt: number;
   lastFreeEggAt: number;
   incomeBoostUntil: number | null;
+  idleGenerators: Record<IdleGeneratorId, IdleGeneratorState>;
   playerTier: Tier;
   maxCreatureSlots: number;
   referralCode: string;

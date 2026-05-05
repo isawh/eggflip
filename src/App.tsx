@@ -11,19 +11,24 @@ import {
   EGG_IMAGE_PATH,
   FREE_EGG_COOLDOWN_MS,
   GAME_TITLE,
+  IDLE_GENERATORS,
   INCOME_BOOST_DURATION_MS,
   INVITE_POPUP_HATCH_THRESHOLD,
+  MAIN_IDLE_CYCLE_MS,
+  MILLISECONDS_PER_MINUTE,
   PRESTIGE_UPGRADES,
   RARITY_META,
   REFERRAL_MILESTONES,
 } from './constants';
 import {
   applyDailyReward,
+  applyGeneratorUpgrade,
   applyOfflineEarnings,
   applyPassiveIncome,
   applyPrestigeReset,
   applyPrestigeUpgrade,
   applyTierProgression,
+  canAffordGeneratorUpgrade,
   canClaimDailyReward,
   createOwnedCreature,
   formatNumber,
@@ -31,9 +36,13 @@ import {
   getCooldownLabel,
   getCreatureDefinition,
   getCreatureIncomePerMinute,
-  getEggCount,
   getEggInventoryCount,
   getFreeEggReadyAt,
+  getGeneratorUpgradeCost,
+  getIdleGeneratorCoinsPerCycle,
+  getIdleGeneratorProgressPercent,
+  getMainIdleProgressPercent,
+  getMainLoopCoinsPerCycle,
   getIncomeBoostRemainingMs,
   getNextDailyReward,
   getPrestigeEssenceGain,
@@ -43,6 +52,7 @@ import {
   getTotalIncomePerMinute,
   getUpgradedIncomePreview,
   getUpgradeCost,
+  isIdleGeneratorUnlocked,
   registerLoginStreak,
   rollCreature,
 } from './game';
@@ -59,7 +69,18 @@ import {
   triggerHapticImpact,
   triggerHapticNotification,
 } from './telegram';
-import type { CreatureDefinition, EggType, GameState, OwnedCreature, PrestigeUpgradeId, Rarity, ReferralMilestone, Screen, Tier } from './types';
+import type {
+  CreatureDefinition,
+  EggType,
+  GameState,
+  IdleGeneratorId,
+  OwnedCreature,
+  PrestigeUpgradeId,
+  Rarity,
+  ReferralMilestone,
+  Screen,
+  Tier,
+} from './types';
 import './styles.css';
 
 interface HatchResult {
@@ -149,16 +170,19 @@ function App() {
   }, [sessionStart.inviteeBonusApplied]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      const current = Date.now();
-      setNow(current);
-      setGameState((state) => {
-        const next = applyPassiveIncome(state, current);
-        return next;
-      });
-    }, 1000);
+    const visualTimer = window.setInterval(() => {
+      setNow(Date.now());
+    }, 280);
 
-    return () => window.clearInterval(timer);
+    const economyTimer = window.setInterval(() => {
+      const current = Date.now();
+      setGameState((state) => applyPassiveIncome(state, current));
+    }, 1_000);
+
+    return () => {
+      window.clearInterval(visualTimer);
+      window.clearInterval(economyTimer);
+    };
   }, []);
 
   useEffect(() => {
@@ -457,6 +481,20 @@ function App() {
     setActiveScreen('home');
   };
 
+  const upgradeIdleGenerator = (generatorId: IdleGeneratorId) => {
+    if (!canAffordGeneratorUpgrade(gameState, generatorId)) {
+      triggerHapticNotification('error');
+      playSound('error');
+      showErrorFeedback('Not enough coins');
+      return;
+    }
+
+    updateGameState((state) => applyGeneratorUpgrade(state, generatorId));
+    triggerHapticNotification('success');
+    playSound('upgrade');
+    showFeedback(`${IDLE_GENERATORS[generatorId].title} upgraded`);
+  };
+
   return (
     <div className="app-shell">
       <main className="phone-frame">
@@ -475,8 +513,7 @@ function App() {
               gameState={gameState}
               totalIncome={totalIncome}
               now={now}
-              onHatch={hatchPreferredEgg}
-              onClaimFreeEgg={claimFreeEgg}
+              onUpgradeGenerator={upgradeIdleGenerator}
               onOpenPrestige={() => setActiveScreen('prestige')}
             />
           )}
@@ -808,58 +845,40 @@ interface HomeScreenProps {
   gameState: GameState;
   totalIncome: number;
   now: number;
-  onHatch: () => void;
-  onClaimFreeEgg: () => void;
+  onUpgradeGenerator: (id: IdleGeneratorId) => void;
   onOpenPrestige: () => void;
 }
 
-function HomeScreen({
-  gameState,
-  totalIncome,
-  now,
-  onHatch,
-  onClaimFreeEgg,
-  onOpenPrestige,
-}: HomeScreenProps) {
-  const totalEggs = getEggCount(gameState);
-  const freeReadyAt = getFreeEggReadyAt(gameState);
-  const freeReady = now >= freeReadyAt;
-  const freeCooldown = getCooldownLabel(freeReadyAt - now);
+const IDLE_GENERATOR_ORDER: IdleGeneratorId[] = ['basic', 'advanced', 'elite'];
+
+function HomeScreen({ gameState, totalIncome, now, onUpgradeGenerator, onOpenPrestige }: HomeScreenProps) {
   const tierProgress = getTierProgress(gameState);
   const essenceGain = getPrestigeEssenceGain(gameState);
   const essenceLoopProgress = getEssenceLoopProgress(gameState, essenceGain);
-  const generatorLoops = getGeneratorLoops(gameState, totalIncome, now);
   const showEssenceAccess = gameState.essence > 0 || gameState.prestigeCount > 0 || essenceGain > 0;
+  const mainPayout = getMainLoopCoinsPerCycle(gameState, now);
 
   return (
     <div className="screen-content home-screen">
       <section className="stats-grid home-stats" aria-label="Player resources">
         <StatPill icon="🪙" label="Coins" value={formatNumber(gameState.coins)} />
         <StatPill icon="💎" label="Gems" value={formatNumber(gameState.gems)} />
-        <StatPill icon="🥚" label="Premium" value={formatNumber(gameState.premiumEggs)} />
-        <StatPill icon="⚡" label="Income" value={`${formatNumber(totalIncome)}/min`} />
+        <StatPill icon="⚡" label="Income" value={`${formatNumber(totalIncome)}/m`} />
+        <StatPill icon="📈" label="Tier" value={`${gameState.playerTier}`} />
       </section>
 
-      <IncomeCycleLoop now={now} totalIncome={totalIncome} />
+      <MainIncomeLoop gameState={gameState} now={now} mainPayout={mainPayout} />
 
-      <div className="generator-loop-grid" aria-label="Generator loops">
-        {generatorLoops.map((loop) => (
-          <GeneratorLoopCard key={loop.id} loop={loop} />
+      <div className="generator-loop-grid" aria-label="Generators">
+        {IDLE_GENERATOR_ORDER.map((id) => (
+          <GeneratorLoopCard
+            gameState={gameState}
+            generatorId={id}
+            key={id}
+            now={now}
+            onUpgrade={() => onUpgradeGenerator(id)}
+          />
         ))}
-      </div>
-
-      <div className="egg-bonus-card">
-        <div className="egg-bonus-copy">
-          <span>Bonus Egg</span>
-          <strong>{totalEggs > 0 ? `${totalEggs} ready` : freeReady ? 'Free ready' : freeCooldown}</strong>
-          <small>Free {gameState.eggs.free} · Basic {gameState.eggs.basic} · Premium {gameState.premiumEggs}</small>
-        </div>
-        <div className="egg-bonus-asset" aria-hidden="true">
-          <AssetImage alt="Egg" className="egg-bonus-image" fallback="🥚" src={EGG_IMAGE_PATH} />
-        </div>
-        <button className="egg-bonus-action" onClick={totalEggs > 0 ? onHatch : onClaimFreeEgg} type="button">
-          {totalEggs > 0 ? 'Hatch' : freeReady ? 'Claim' : 'Wait'}
-        </button>
       </div>
 
       <div className="progress-goal-grid" aria-label="Long-term progress">
@@ -884,7 +903,78 @@ function HomeScreen({
           <small>{essenceGain > 0 ? `+${formatNumber(essenceGain)} on reset` : `${gameState.prestigeCount} resets`}</small>
         </button>
       )}
+    </div>
+  );
+}
 
+interface MainIncomeLoopProps {
+  gameState: GameState;
+  now: number;
+  mainPayout: number;
+}
+
+function MainIncomeLoop({ gameState, now, mainPayout }: MainIncomeLoopProps) {
+  const cycleProgress = getMainIdleProgressPercent(gameState, now);
+  const isCompleting = cycleProgress > 84;
+  const cycleStyle = {
+    '--cycle-progress': `${cycleProgress * 3.6}deg`,
+  } as CSSProperties;
+  const phaseMs = (now - gameState.mainLoopLastPayoutAt) % MAIN_IDLE_CYCLE_MS;
+  const secLeft = Math.max(0, Math.ceil((MAIN_IDLE_CYCLE_MS - phaseMs) / 1000));
+
+  return (
+    <div className={`income-cycle-card ${isCompleting ? 'is-completing' : ''}`} aria-label="Main payout loop">
+      <div className="income-cycle-ring" style={cycleStyle}>
+        <div className="income-cycle-core">
+          <span>Next</span>
+          <strong>+{formatNumber(mainPayout)}</strong>
+          <small>coins</small>
+        </div>
+      </div>
+      <div className="income-cycle-meta">
+        <span>Main loop</span>
+        <strong>{secLeft}s</strong>
+        <small>Full ring every {MAIN_IDLE_CYCLE_MS / 1000}s — payout on complete</small>
+      </div>
+    </div>
+  );
+}
+
+interface GeneratorLoopCardProps {
+  gameState: GameState;
+  generatorId: IdleGeneratorId;
+  now: number;
+  onUpgrade: () => void;
+}
+
+function GeneratorLoopCard({ gameState, generatorId, now, onUpgrade }: GeneratorLoopCardProps) {
+  const cfg = IDLE_GENERATORS[generatorId];
+  const unlocked = isIdleGeneratorUnlocked(gameState, generatorId);
+  const gen = gameState.idleGenerators[generatorId];
+  const progress = unlocked ? getIdleGeneratorProgressPercent(gameState, generatorId, now) : 0;
+  const incomePerCycle = unlocked ? getIdleGeneratorCoinsPerCycle(gameState, generatorId, now) : 0;
+  const perMinute = unlocked ? Math.round((incomePerCycle / cfg.cycleMs) * MILLISECONDS_PER_MINUTE) : 0;
+  const cost = getGeneratorUpgradeCost(gameState, generatorId);
+  const canBuy = canAffordGeneratorUpgrade(gameState, generatorId);
+  const phaseMs = unlocked ? (now - gen.lastCollectedAt) % cfg.cycleMs : 0;
+  const secLeft = unlocked ? Math.max(0, Math.ceil((cfg.cycleMs - phaseMs) / 1000)) : 0;
+
+  return (
+    <div className={`generator-loop-card ${generatorId}`}>
+      <div className="generator-loop-header">
+        <span>{cfg.title}</span>
+        <strong>Lv {gen.level}</strong>
+      </div>
+      <div className="generator-loop-track" aria-label={`${cfg.title} payout timer`}>
+        <span style={{ width: `${progress}%` }} />
+      </div>
+      <div className="generator-loop-footer">
+        <span>{unlocked ? `${formatNumber(perMinute)}/m` : `Tier ${cfg.unlockTier}`}</span>
+        <strong>{unlocked ? `+${formatNumber(incomePerCycle)} · ${secLeft}s` : 'Locked'}</strong>
+      </div>
+      <button className="generator-upgrade-btn" disabled={!unlocked || !canBuy} onClick={onUpgrade} type="button">
+        {unlocked ? `Upgrade ${formatNumber(cost)}` : 'Locked'}
+      </button>
     </div>
   );
 }
@@ -897,69 +987,6 @@ interface LoopProgress {
 interface ProgressLoopProps extends LoopProgress {
   label: string;
   variant: 'egg' | 'tier' | 'income' | 'essence';
-}
-
-interface GeneratorLoop {
-  id: 'basic' | 'rare' | 'epic';
-  label: string;
-  income: number;
-  levelLabel: string;
-  progress: number;
-}
-
-interface GeneratorLoopCardProps {
-  loop: GeneratorLoop;
-}
-
-interface IncomeCycleLoopProps {
-  now: number;
-  totalIncome: number;
-}
-
-const INCOME_CYCLE_MS = 4_000;
-
-function IncomeCycleLoop({ now, totalIncome }: IncomeCycleLoopProps) {
-  const cycleProgress = ((now % INCOME_CYCLE_MS) / INCOME_CYCLE_MS) * 100;
-  const cycleCoins = totalIncome * (INCOME_CYCLE_MS / 60_000);
-  const isCompleting = cycleProgress > 84;
-  const cycleStyle = {
-    '--cycle-progress': `${cycleProgress * 3.6}deg`,
-  } as CSSProperties;
-
-  return (
-    <div className={`income-cycle-card ${isCompleting ? 'is-completing' : ''}`} aria-label="Income cycle">
-      <div className="income-cycle-ring" style={cycleStyle}>
-        <div className="income-cycle-core">
-          <span>Cycle</span>
-          <strong>+{formatNumber(cycleCoins)}</strong>
-          <small>coins</small>
-        </div>
-      </div>
-      <div className="income-cycle-meta">
-        <span>Income Loop</span>
-        <strong>{formatNumber(totalIncome)}/min</strong>
-        <small>Auto cycle refills every {INCOME_CYCLE_MS / 1000}s</small>
-      </div>
-    </div>
-  );
-}
-
-function GeneratorLoopCard({ loop }: GeneratorLoopCardProps) {
-  return (
-    <div className={`generator-loop-card ${loop.id}`}>
-      <div className="generator-loop-header">
-        <span>{loop.label}</span>
-        <strong>{loop.levelLabel}</strong>
-      </div>
-      <div className="generator-loop-track" aria-label={`${loop.label} progress`}>
-        <span style={{ width: `${loop.progress}%` }} />
-      </div>
-      <div className="generator-loop-footer">
-        <span>{formatNumber(loop.income)}/min</span>
-        <strong>{loop.income > 0 ? `+${formatNumber(loop.income * (INCOME_CYCLE_MS / 60_000))}/cycle` : 'Locked'}</strong>
-      </div>
-    </div>
-  );
 }
 
 function ProgressLoop({ label, percent, status, variant }: ProgressLoopProps) {
@@ -1031,73 +1058,19 @@ const getTierLoopStatus = (percent: number, nextTier: Tier | null): string => {
   return `Next Tier ${nextTier}`;
 };
 
-const INCOME_LOOP_MILESTONES = [10, 25, 50, 100, 250, 500, 1_000, 2_500, 5_000, 10_000];
-
-const GENERATOR_LOOP_CONFIG: Array<{
-  id: GeneratorLoop['id'];
-  label: string;
-  rarities: Rarity[];
-  cycleMs: number;
-}> = [
-  { id: 'basic', label: 'Basic Loop', rarities: ['Common'], cycleMs: 3_000 },
-  { id: 'rare', label: 'Rare Loop', rarities: ['Rare'], cycleMs: 4_200 },
-  { id: 'epic', label: 'Epic Loop', rarities: ['Epic', 'Legendary', 'Mythic'], cycleMs: 5_400 },
-];
-
-const getGeneratorLoops = (gameState: GameState, totalIncome: number, now: number): GeneratorLoop[] => {
-  const activeCreatures = getActiveCreatures(gameState);
-  const baseGroups = GENERATOR_LOOP_CONFIG.map((config) => {
-    const creatures = activeCreatures.filter((creature) =>
-      config.rarities.includes(getCreatureDefinition(creature.creatureId).rarity),
-    );
-    const rawIncome = creatures.reduce((sum, creature) => sum + getCreatureIncomePerMinute(creature), 0);
-    const levelTotal = creatures.reduce((sum, creature) => sum + creature.level, 0);
-
-    return {
-      ...config,
-      rawIncome,
-      levelTotal,
-    };
-  });
-  const rawTotal = baseGroups.reduce((sum, group) => sum + group.rawIncome, 0);
-
-  return baseGroups.map((group) => ({
-    id: group.id,
-    label: group.label,
-    income: rawTotal > 0 ? Math.round((group.rawIncome / rawTotal) * totalIncome) : 0,
-    levelLabel: group.levelTotal > 0 ? `Lv ${group.levelTotal}` : 'Lv 0',
-    progress: ((now % group.cycleMs) / group.cycleMs) * 100,
-  }));
-};
-
-const getIncomeLoopProgress = (totalIncome: number): LoopProgress => {
-  const nextMilestone =
-    INCOME_LOOP_MILESTONES.find((milestone) => totalIncome < milestone) ??
-    Math.ceil((totalIncome + 1) / 10_000) * 10_000;
-  const previousMilestone =
-    [...INCOME_LOOP_MILESTONES].reverse().find((milestone) => milestone < nextMilestone && milestone <= totalIncome) ?? 0;
-  const range = Math.max(1, nextMilestone - previousMilestone);
-
-  return {
-    percent: ((totalIncome - previousMilestone) / range) * 100,
-    status:
-      totalIncome >= nextMilestone
-        ? 'Ready!'
-        : nextMilestone - totalIncome <= Math.max(5, range * 0.12)
-          ? 'Almost ready'
-          : `Next at ${formatNumber(nextMilestone)}/min`,
-  };
-};
-
 const getEssenceLoopProgress = (gameState: GameState, essenceGain: number): LoopProgress => {
-  const nextEssence = essenceGain + 1;
-  const currentTarget = Math.pow(essenceGain, 2) * ECONOMY.prestigeEssenceDivisor;
-  const nextTarget = Math.pow(nextEssence, 2) * ECONOMY.prestigeEssenceDivisor;
-  const range = Math.max(1, nextTarget - currentTarget);
+  const nextGain = essenceGain + 1;
+  const currentBracket = Math.pow(essenceGain, 2) * ECONOMY.prestigeEssenceDivisor;
+  const nextBracket = Math.pow(nextGain, 2) * ECONOMY.prestigeEssenceDivisor;
+  const range = Math.max(1, nextBracket - currentBracket);
+  const coinsThisRun = gameState.totalCoinsEarned;
 
   return {
-    percent: ((gameState.totalCoinsEarned - currentTarget) / range) * 100,
-    status: essenceGain > 0 ? `+${formatNumber(essenceGain)} ready` : `Next at ${formatNumber(nextTarget)} coins`,
+    percent: ((coinsThisRun - currentBracket) / range) * 100,
+    status:
+      essenceGain > 0
+        ? `Next prestige +1 at ${formatNumber(nextBracket)} coins (this run)`
+        : `First essence at ${formatNumber(nextBracket)} coins this run`,
   };
 };
 

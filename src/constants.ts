@@ -1,4 +1,4 @@
-import type { CreatureDefinition, DailyReward, EggType, PrestigeUpgradeId, Rarity, ReferralMilestone, Tier } from './types';
+import type { CreatureDefinition, DailyReward, EggType, IdleGeneratorId, PrestigeUpgradeId, Rarity, ReferralMilestone, Tier } from './types';
 
 export const GAME_TITLE = 'EggFlip';
 
@@ -17,6 +17,48 @@ export const STREAK_RESET_MS = 48 * 60 * 60 * 1000;
 export const INCOME_BOOST_DURATION_MS = 24 * 60 * 60 * 1000;
 export const REFERRAL_BOOST_DURATION_MS = 48 * 60 * 60 * 1000;
 export const INVITE_POPUP_HATCH_THRESHOLD = 3;
+
+/** Central idle loop pays coins when filled; generators run in parallel */
+export const MAIN_IDLE_CYCLE_MS = 4_000;
+export const MAIN_IDLE_BASE_COINS = 8;
+
+export const IDLE_GENERATORS: Record<IdleGeneratorId, {
+  id: IdleGeneratorId;
+  title: string;
+  unlockTier: Tier;
+  cycleMs: number;
+  baseCoinsPerCycle: number;
+  upgradeBaseCost: number;
+  upgradeCostMultiplier: number;
+}> = {
+  basic: {
+    id: 'basic',
+    title: 'Basic Generator',
+    unlockTier: 1,
+    cycleMs: 3_000,
+    baseCoinsPerCycle: 2,
+    upgradeBaseCost: 25,
+    upgradeCostMultiplier: 1.45,
+  },
+  advanced: {
+    id: 'advanced',
+    title: 'Advanced Generator',
+    unlockTier: 2,
+    cycleMs: 4_500,
+    baseCoinsPerCycle: 12,
+    upgradeBaseCost: 180,
+    upgradeCostMultiplier: 1.55,
+  },
+  elite: {
+    id: 'elite',
+    title: 'Elite Generator',
+    unlockTier: 3,
+    cycleMs: 6_000,
+    baseCoinsPerCycle: 40,
+    upgradeBaseCost: 900,
+    upgradeCostMultiplier: 1.65,
+  },
+};
 
 // Economy knobs live here so egg prices, upgrades, rewards, and income can be tuned later.
 export const ECONOMY = {
