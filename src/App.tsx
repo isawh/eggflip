@@ -957,6 +957,7 @@ function ProgressLoop({ label, percent, status, variant }: ProgressLoopProps) {
   const segments = Array.from({ length: 8 }, (_, index) => index);
   const activeSegments = Math.ceil((normalizedPercent / 100) * segments.length);
   const isComplete = normalizedPercent >= 100;
+  const statusText = isComplete ? status.replace(/!$/, '') : status;
 
   useEffect(() => {
     if (normalizedPercent > previousPercentRef.current) {
@@ -983,8 +984,11 @@ function ProgressLoop({ label, percent, status, variant }: ProgressLoopProps) {
   return (
     <div className={`loop-progress-row ${variant} ${isComplete ? 'complete' : ''} ${isGrowing ? 'is-growing' : ''}`}>
       <div className="loop-progress-header">
-        <span>{label}</span>
-        <strong>{Math.round(normalizedPercent)}% · {status}</strong>
+        <span className="loop-progress-name">{label}</span>
+        <strong className="loop-progress-status">
+          <span>{Math.round(normalizedPercent)}%</span>
+          {statusText}
+        </strong>
       </div>
       {variant === 'income' ? (
         <div className="segmented-progress-track" aria-label={label}>
