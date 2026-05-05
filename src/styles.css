@@ -106,6 +106,21 @@ button {
   margin: 0 auto;
 }
 
+.phone-frame.phone-frame--idle-payout-lift {
+  animation: idle-shell-main-pay-soft 515ms cubic-bezier(0.22, 1, 0.36, 1) 1 forwards;
+}
+
+@keyframes idle-shell-main-pay-soft {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+
+  44% {
+    filter: brightness(1.068) saturate(1.058);
+  }
+}
+
 .top-header {
   display: flex;
   align-items: center;
@@ -652,6 +667,30 @@ h2 {
   transition: none !important;
 }
 
+.income-cycle-ring.income-cycle-ring--idle-pay-pulse:not(.income-cycle-ring--phase-snap) {
+  animation-name: idle-main-ring-pay-pulse-scale, income-ring-glow;
+  animation-duration: 500ms, 2.2s;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1), ease-in-out;
+  animation-delay: 0s, 0s;
+  animation-iteration-count: 1, infinite;
+  animation-direction: normal, normal;
+  animation-fill-mode: forwards, none;
+}
+
+@keyframes idle-main-ring-pay-pulse-scale {
+  0% {
+    transform: translateZ(0) scale(1);
+  }
+
+  48% {
+    transform: translateZ(0) scale(1.055);
+  }
+
+  100% {
+    transform: translateZ(0) scale(1);
+  }
+}
+
 .income-cycle-card.just-paid {
   animation: generator-loop-payout-glow 380ms ease-out;
 }
@@ -756,10 +795,6 @@ h2 {
   }
 }
 
-.generator-loop-card.generator-payout-flash {
-  animation: generator-card-payout-pop 340ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
 @keyframes generator-card-payout-pop {
   0% {
     transform: translateZ(0) scale(1);
@@ -811,10 +846,33 @@ h2 {
 
 .generator-loop-card.is-best-upgrade {
   border-color: #efd454;
-  box-shadow:
-    0 3px 0 var(--eggflip-border-color),
-    inset 0 2px 0 rgba(255, 255, 255, 0.72),
-    0 0 16px rgba(255, 224, 130, 0.5);
+  animation: idle-gen-best-soft-breathe 8.8s ease-in-out infinite alternate;
+}
+
+@keyframes idle-gen-best-soft-breathe {
+  0% {
+    box-shadow:
+      0 3px 0 var(--eggflip-border-color),
+      inset 0 2px 0 rgba(255, 255, 255, 0.72),
+      0 0 14px rgba(255, 224, 130, 0.44);
+    filter: saturate(1);
+  }
+
+  100% {
+    box-shadow:
+      0 3px 0 var(--eggflip-border-color),
+      inset 0 2px 0 rgba(255, 255, 255, 0.78),
+      0 0 22px rgba(255, 236, 170, 0.58);
+    filter: saturate(1.065);
+  }
+}
+
+.generator-loop-card.generator-loop-card--upgrade-rush {
+  filter: saturate(1.04);
+}
+
+.generator-loop-card.generator-payout-flash {
+  animation: generator-card-payout-pop 340ms cubic-bezier(0.22, 1, 0.36, 1) 1 forwards;
 }
 
 .generator-loop-track {
@@ -841,6 +899,28 @@ h2 {
 
 .generator-loop-fill--instant {
   transition: none !important;
+}
+
+.generator-loop-track.generator-loop-track--upgrade-rush {
+  border-color: rgba(122, 210, 150, 0.95);
+  box-shadow:
+    inset 0 2px 0 rgba(19, 34, 61, 0.08),
+    0 0 0 1px rgba(117, 255, 159, 0.32),
+    0 0 14px rgba(255, 224, 128, 0.38);
+}
+
+.generator-loop-track.generator-loop-track--upgrade-rush .generator-loop-fill--rush-vis {
+  animation-duration: 0.75s !important;
+  animation-timing-function: linear !important;
+}
+
+.generator-loop-track.generator-loop-track--upgrade-rush .generator-loop-fill--rush-vis.generator-loop-fill--smooth {
+  transition: width 100ms linear;
+  filter: brightness(1.1) saturate(1.07);
+}
+
+.generator-loop-track.generator-loop-track--upgrade-rush .generator-loop-fill--rush-vis.generator-loop-fill--instant {
+  filter: brightness(1.06) saturate(1.06);
 }
 
 .generator-loop-track.just-paid {

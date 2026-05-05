@@ -1,4 +1,13 @@
-import { type CSSProperties, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  type CSSProperties,
+  type MutableRefObject,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { AssetImage } from './components/AssetImage';
 import { BottomNav } from './components/BottomNav';
 import { CreatureCard } from './components/CreatureCard';
@@ -102,9 +111,15 @@ interface SessionStart {
 }
 
 const IDLE_PAYOUT_FLASH_MS = 340;
+/** Visual-only surge after purchasing a generator level (economy unchanged). */
+const GENERATOR_UPGRADE_RUSH_MS = 1650;
 
 /** Flash + one frame without CSS transition when `cycleStartAt` advances (real payout boundary). */
-function useIdleCyclePayoutCue(cycleStartAt: number, active: boolean): { payoutFlash: boolean; snapPhase: boolean } {
+function useIdleCyclePayoutCue(
+  cycleStartAt: number,
+  active: boolean,
+  onPaidRef?: MutableRefObject<(() => void) | undefined>,
+): { payoutFlash: boolean; snapPhase: boolean } {
   const lastSeenStartRef = useRef(cycleStartAt);
   const [payoutFlash, setPayoutFlash] = useState(false);
   const [snapPhase, setSnapPhase] = useState(false);
@@ -118,6 +133,7 @@ function useIdleCyclePayoutCue(cycleStartAt: number, active: boolean): { payoutF
     const last = lastSeenStartRef.current;
     if (last !== cycleStartAt) {
       lastSeenStartRef.current = cycleStartAt;
+      onPaidRef?.current?.();
       setSnapPhase(true);
       requestAnimationFrame(() => {
         setSnapPhase(false);
@@ -192,6 +208,7 @@ interface SyncedLinearCycleBarProps {
   ariaLabel: string;
   payoutFlash: boolean;
   snapPhase: boolean;
+  upgradeRush: boolean;
 }
 
 function SyncedLinearCycleBar({
@@ -202,6 +219,7 @@ function SyncedLinearCycleBar({
   ariaLabel,
   payoutFlash,
   snapPhase,
+  upgradeRush,
 }: SyncedLinearCycleBarProps) {
   const phase = active ? getIdleLoopPhase(now, cycleStartAt, cycleDurationMs) : null;
   const progressPercent = phase?.progressPercent ?? 0;
@@ -213,10 +231,13 @@ function SyncedLinearCycleBar({
 
   return (
     <div
-      className={`generator-loop-track${snapPhase || payoutFlash ? ' just-paid' : ''}`}
+      className={`generator-loop-track${snapPhase || payoutFlash ? ' just-paid' : ''}${upgradeRush ? ' generator-loop-track--upgrade-rush' : ''}`}
       aria-label={ariaLabel}
     >
-      <span className={`generator-loop-fill ${fillClass}`} style={{ width: `${progressPercent}%` }} />
+      <span
+        className={`generator-loop-fill ${fillClass}${upgradeRush ? ' generator-loop-fill--rush-vis' : ''}`}
+        style={{ width: `${progressPercent}%` }}
+      />
     </div>
   );
 }
@@ -245,8 +266,22 @@ function App() {
   const [soundEnabled, setSoundEnabledState] = useState(() => getSoundEnabled());
   const [telegramDetected, setTelegramDetected] = useState(() => isTelegram());
   const [invitePopupOpen, setInvitePopupOpen] = useState(false);
+  const [phoneFrameIdlePulse, setPhoneFrameIdlePulse] = useState(false);
   const feedbackTimerRef = useRef<number | null>(null);
   const upgradeTimerRef = useRef<number | null>(null);
+  const mainLoopPaidRef = useRef<(() => void) | undefined>(undefined);
+
+  const pulsePhoneFrameIdle = useCallback(() => {
+    setPhoneFrameIdlePulse(true);
+  }, []);
+
+  useEffect(() => {
+    if (!phoneFrameIdlePulse) {
+      return;
+    }
+    const tid = window.setTimeout(() => setPhoneFrameIdlePulse(false), 500);
+    return () => window.clearTimeout(tid);
+  }, [phoneFrameIdlePulse]);
 
   const showFeedback = (message: string) => {
     setFeedbackMessage(message);
@@ -647,9 +682,13 @@ function App() {
     showFeedback(`${IDLE_GENERATORS[generatorId].title} upgraded`);
   };
 
+  mainLoopPaidRef.current = activeScreen === 'home' ? pulsePhoneFrameIdle : undefined;
+
   return (
     <div className="app-shell">
-      <main className="phone-frame">
+      <main
+        className={['phone-frame', phoneFrameIdlePulse ? 'phone-frame--idle-payout-lift' : ''].filter(Boolean).join(' ')}
+      >
         <header className="top-header">
           <div>
             <h1>{GAME_TITLE}</h1>
@@ -665,6 +704,7 @@ function App() {
               gameState={gameState}
               totalIncome={totalIncome}
               now={now}
+              mainLoopPaidRef={mainLoopPaidRef}
               onUpgradeGenerator={upgradeIdleGenerator}
               onOpenPrestige={() => setActiveScreen('prestige')}
             />
@@ -1006,13 +1046,21 @@ interface HomeScreenProps {
   gameState: GameState;
   totalIncome: number;
   now: number;
+  mainLoopPaidRef: MutableRefObject<(() => void) | undefined>;
   onUpgradeGenerator: (id: IdleGeneratorId) => void;
   onOpenPrestige: () => void;
 }
 
 const IDLE_GENERATOR_ORDER: IdleGeneratorId[] = ['basic', 'advanced', 'elite'];
 
-function HomeScreen({ gameState, totalIncome, now, onUpgradeGenerator, onOpenPrestige }: HomeScreenProps) {
+function HomeScreen({
+  gameState,
+  totalIncome,
+  now,
+  mainLoopPaidRef,
+  onUpgradeGenerator,
+  onOpenPrestige,
+}: HomeScreenProps) {
   const tierProgress = getTierProgress(gameState);
   const essenceGain = getPrestigeEssenceGain(gameState);
   const essenceLoopProgress = getEssenceLoopProgress(gameState, essenceGain);
@@ -1041,7 +1089,7 @@ function HomeScreen({ gameState, totalIncome, now, onUpgradeGenerator, onOpenPre
         <StatPill icon="📈" label="Tier" value={`${gameState.playerTier}`} />
       </section>
 
-      <MainIncomeLoop gameState={gameState} now={now} mainPayout={mainPayout} />
+      <MainIncomeLoop gameState={gameState} mainLoopPaidRef={mainLoopPaidRef} now={now} mainPayout={mainPayout} />
 
       <div className="generator-loop-grid" aria-label="Generators">
         {IDLE_GENERATOR_ORDER.map((id) => (
@@ -1086,13 +1134,14 @@ interface MainIncomeLoopProps {
   gameState: GameState;
   now: number;
   mainPayout: number;
+  mainLoopPaidRef: MutableRefObject<(() => void) | undefined>;
 }
 
-function MainIncomeLoop({ gameState, now, mainPayout }: MainIncomeLoopProps) {
+function MainIncomeLoop({ gameState, now, mainPayout, mainLoopPaidRef }: MainIncomeLoopProps) {
   const cycleStart = gameState.mainLoopLastPayoutAt;
   const phase = getMainIdleLoopPhase(gameState, now);
   const cycleProgress = phase.progressPercent;
-  const { payoutFlash, snapPhase } = useIdleCyclePayoutCue(cycleStart, true);
+  const { payoutFlash, snapPhase } = useIdleCyclePayoutCue(cycleStart, true, mainLoopPaidRef);
   const isCompleting = cycleProgress > 84;
   const cycleStyle = {
     '--cycle-progress': `${cycleProgress * 3.6}deg`,
@@ -1110,7 +1159,7 @@ function MainIncomeLoop({ gameState, now, mainPayout }: MainIncomeLoopProps) {
       aria-label="Main payout loop"
     >
       <div
-        className={`income-cycle-ring${snapPhase ? ' income-cycle-ring--phase-snap' : ''}`}
+        className={`income-cycle-ring${snapPhase ? ' income-cycle-ring--phase-snap' : ''}${payoutFlash ? ' income-cycle-ring--idle-pay-pulse' : ''}`}
         style={cycleStyle}
       >
         <div className="income-cycle-core">
@@ -1140,6 +1189,22 @@ function GeneratorLoopCard({ gameState, generatorId, now, bestUpgradeId, onUpgra
   const cfg = IDLE_GENERATORS[generatorId];
   const unlocked = isIdleGeneratorUnlocked(gameState, generatorId);
   const gen = gameState.idleGenerators[generatorId];
+  const prevGenLevelRef = useRef(gen.level);
+  const [upgradeRushUntil, setUpgradeRushUntil] = useState(0);
+
+  useEffect(() => {
+    const prev = prevGenLevelRef.current;
+    if (!unlocked) {
+      prevGenLevelRef.current = gen.level;
+      return;
+    }
+    if (gen.level > prev) {
+      setUpgradeRushUntil(Date.now() + GENERATOR_UPGRADE_RUSH_MS);
+    }
+    prevGenLevelRef.current = gen.level;
+  }, [gen.level, unlocked]);
+
+  const upgradeRushActive = unlocked && upgradeRushUntil > now;
   const phaseDetail = unlocked ? getIdleGeneratorLoopPhase(gameState, generatorId, now) : null;
   const incomePerCycle = unlocked ? getIdleGeneratorCoinsPerCycle(gameState, generatorId, now) : 0;
   const cyclesPerMinute = MILLISECONDS_PER_MINUTE / cfg.cycleMs;
@@ -1170,6 +1235,7 @@ function GeneratorLoopCard({ gameState, generatorId, now, bestUpgradeId, onUpgra
         'generator-loop-card',
         generatorId,
         isBest ? 'is-best-upgrade' : '',
+        upgradeRushActive ? 'generator-loop-card--upgrade-rush' : '',
         snapPhase || payoutFlash ? 'generator-payout-flash' : '',
       ]
         .filter(Boolean)
@@ -1199,6 +1265,7 @@ function GeneratorLoopCard({ gameState, generatorId, now, bestUpgradeId, onUpgra
         now={now}
         payoutFlash={payoutFlash}
         snapPhase={snapPhase}
+        upgradeRush={upgradeRushActive}
       />
       <div className="generator-loop-metrics" aria-label="Generator yield">
         {unlocked ? (
