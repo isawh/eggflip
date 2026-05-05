@@ -3277,3 +3277,253 @@ button:disabled {
     margin-bottom: 4px !important;
   }
 }
+
+@media (max-width: 430px) {
+  :root {
+    --eggflip-bottom-nav-height: 54px;
+  }
+
+  .app-shell,
+  .phone-frame {
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+    overflow: hidden !important;
+  }
+
+  .phone-frame {
+    gap: 5px !important;
+    padding:
+      calc(5px + env(safe-area-inset-top, 0px) + var(--eggflip-safe-area-top) + var(--eggflip-content-safe-area-top))
+      calc(8px + env(safe-area-inset-right, 0px) + var(--eggflip-safe-area-right) + var(--eggflip-content-safe-area-right))
+      calc(var(--eggflip-bottom-nav-height) + 14px + env(safe-area-inset-bottom, 0px) + var(--eggflip-safe-area-bottom) + var(--eggflip-content-safe-area-bottom))
+      calc(8px + env(safe-area-inset-left, 0px) + var(--eggflip-safe-area-left) + var(--eggflip-content-safe-area-left)) !important;
+  }
+
+  .top-header {
+    flex: 0 0 auto !important;
+  }
+
+  h1 {
+    font-size: 22px !important;
+    line-height: 0.9 !important;
+  }
+
+  .telegram-label {
+    margin-top: 3px !important;
+    padding: 3px 7px !important;
+    font-size: 9px !important;
+  }
+
+  .screen-panel {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .home-screen {
+    height: 100% !important;
+    max-height: 100% !important;
+    gap: 5px !important;
+    overflow-y: hidden !important;
+    overflow-x: hidden !important;
+    padding-bottom: 0 !important;
+  }
+
+  .home-stats {
+    flex: 0 0 auto !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 5px !important;
+  }
+
+  .home-stats .stat-pill {
+    min-height: 40px !important;
+    padding: 4px 3px !important;
+    gap: 2px !important;
+  }
+
+  .home-stats .stat-icon {
+    width: 20px !important;
+    height: 20px !important;
+    flex-basis: 20px !important;
+    font-size: 13px !important;
+  }
+
+  .home-stats .stat-label {
+    font-size: 8px !important;
+  }
+
+  .home-stats .stat-pill strong {
+    font-size: 10px !important;
+  }
+
+  .home-hero,
+  .tier-progress-card,
+  .cooldown-card,
+  .loop-progress-card {
+    position: relative !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    clear: none !important;
+  }
+
+  .home-hero {
+    flex: 0 0 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    height: auto !important;
+    min-height: 150px !important;
+    max-height: none !important;
+    padding: 7px 10px 10px !important;
+    gap: 4px !important;
+    overflow: visible !important;
+  }
+
+  .hero-copy strong {
+    padding: 5px 8px !important;
+    font-size: 10px !important;
+  }
+
+  .hero-egg {
+    width: 76px !important;
+    height: 76px !important;
+    margin: 0 auto !important;
+    flex: 0 0 auto !important;
+    overflow: visible !important;
+  }
+
+  .hero-egg-asset {
+    width: 74% !important;
+    height: 74% !important;
+  }
+
+  .hatch-action {
+    position: static !important;
+    transform: none !important;
+    width: min(82%, 260px) !important;
+    min-height: 40px !important;
+    margin: 3px auto 0 !important;
+    padding: 0 14px !important;
+    font-size: 18px !important;
+    box-shadow:
+      0 0 0 3px rgba(255, 255, 255, 0.3),
+      0 3px 0 var(--eggflip-border-color),
+      0 5px 0 rgba(19, 34, 61, 0.1) !important;
+  }
+
+  .tier-progress-card {
+    flex: 0 0 auto !important;
+    min-height: 54px !important;
+    padding: 7px 9px !important;
+    gap: 5px !important;
+    overflow: visible !important;
+  }
+
+  .tier-progress-header,
+  .tier-progress-footer {
+    gap: 8px !important;
+  }
+
+  .tier-progress-header span,
+  .tier-progress-footer span {
+    font-size: 9px !important;
+  }
+
+  .tier-progress-header strong,
+  .tier-progress-footer strong {
+    margin-top: 1px !important;
+    font-size: 12px !important;
+  }
+
+  .progress-track,
+  .progress-track.tier-track {
+    height: 12px !important;
+    padding: 2px !important;
+  }
+
+  .cooldown-card {
+    flex: 0 0 auto !important;
+    min-height: 56px !important;
+    padding: 7px 9px !important;
+    grid-template-columns: minmax(0, 1fr) 76px !important;
+    gap: 7px !important;
+  }
+
+  .cooldown-card strong {
+    margin-top: 2px !important;
+    font-size: 18px !important;
+  }
+
+  .cooldown-card p {
+    font-size: 11px !important;
+    line-height: 1.15 !important;
+  }
+
+  .cooldown-card button {
+    min-height: 38px !important;
+    font-size: 12px !important;
+  }
+
+  .loop-progress-card {
+    flex: 0 0 auto !important;
+    padding: 6px 8px !important;
+    gap: 4px !important;
+    overflow: visible !important;
+  }
+
+  .loop-progress-title {
+    padding: 4px 8px !important;
+    font-size: 10px !important;
+    box-shadow: 0 2px 0 var(--eggflip-border-color), inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+  }
+
+  .loop-progress-row {
+    gap: 2px !important;
+  }
+
+  .loop-progress-header {
+    gap: 6px !important;
+  }
+
+  .loop-progress-header span {
+    font-size: 8px !important;
+  }
+
+  .loop-progress-header strong {
+    font-size: 9px !important;
+    line-height: 1 !important;
+  }
+
+  .loop-progress-track,
+  .segmented-progress-track {
+    height: 9px !important;
+    padding: 1px !important;
+    border-width: 2px !important;
+  }
+
+  .segmented-progress-track {
+    gap: 2px !important;
+  }
+
+  .bottom-nav {
+    min-height: var(--eggflip-bottom-nav-height) !important;
+    padding: 4px !important;
+    gap: 4px !important;
+  }
+
+  .nav-item {
+    min-height: 42px !important;
+    padding: 3px 1px !important;
+  }
+
+  .nav-item span:first-child {
+    font-size: 16px !important;
+  }
+
+  .nav-item span:last-child {
+    font-size: 8px !important;
+  }
+}
