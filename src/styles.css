@@ -2403,15 +2403,34 @@ button:disabled {
 
   .bottom-nav {
     bottom: calc(8px + env(safe-area-inset-bottom, 0px) + var(--eggflip-safe-area-bottom) + var(--eggflip-content-safe-area-bottom));
-    width: min(
-      calc(100% - 18px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - var(--eggflip-safe-area-left) - var(--eggflip-safe-area-right) - var(--eggflip-content-safe-area-left) - var(--eggflip-content-safe-area-right)),
-      540px
-    );
-    padding: 6px;
+    width: calc(100% - 24px);
+    max-width: 560px;
+    padding: 5px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
   }
 
   .nav-item {
-    min-height: 50px;
+    min-width: 0;
+    min-height: 48px;
+    padding: 4px 1px;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+
+  .nav-item span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .nav-item span:first-child {
+    font-size: 18px;
+  }
+
+  .nav-item span:last-child {
+    font-size: 8.5px;
   }
 }
 
@@ -2644,22 +2663,33 @@ button:disabled {
 
   .bottom-nav {
     bottom: calc(8px + env(safe-area-inset-bottom, 0px) + var(--eggflip-safe-area-bottom) + var(--eggflip-content-safe-area-bottom));
-    width: min(
-      calc(100% - 16px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - var(--eggflip-safe-area-left) - var(--eggflip-safe-area-right) - var(--eggflip-content-safe-area-left) - var(--eggflip-content-safe-area-right)),
-      540px
-    );
-    padding: 6px;
+    width: calc(100% - 24px);
+    max-width: 560px;
+    padding: 4px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 3px;
   }
 
   .nav-item {
-    min-height: 48px;
+    min-width: 0;
+    min-height: 46px;
+    padding: 3px 1px;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+
+  .nav-item span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .nav-item span:first-child {
-    font-size: 19px;
+    font-size: 17px;
   }
 
   .nav-item span:last-child {
-    font-size: 9px;
+    font-size: 8px;
   }
 }
