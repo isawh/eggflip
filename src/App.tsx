@@ -862,6 +862,7 @@ function HomeScreen({
   const eggLoopProgress = getEggLoopProgress(gameState, totalEggs, freeReadyAt, now);
   const incomeLoopProgress = getIncomeLoopProgress(totalIncome);
   const essenceGain = getPrestigeEssenceGain(gameState);
+  const essenceLoopProgress = getEssenceLoopProgress(gameState, essenceGain);
   const showEssenceAccess = gameState.essence > 0 || gameState.prestigeCount > 0 || essenceGain > 0;
 
   return (
@@ -886,25 +887,6 @@ function HomeScreen({
         </button>
       </div>
 
-      <div className="tier-progress-card">
-        <div className="tier-progress-header">
-          <div>
-            <span>Tier</span>
-            <strong>Tier {tierProgress.currentTier}: {tierProgress.currentLabel}</strong>
-          </div>
-          <div>
-            <span>Max Drop</span>
-            <strong>{tierProgress.maxRarity}</strong>
-          </div>
-        </div>
-        <div className="progress-track tier-track" aria-label="Tier progress">
-          <span style={{ width: `${tierProgress.progressPercent}%` }} />
-        </div>
-        <div className="tier-progress-footer">
-          <span>{tierProgress.goalLabel}</span>
-          <strong>{tierProgress.progressLabel}</strong>
-        </div>
-      </div>
       <div className="cooldown-card">
         <div>
           <span className="status-title">Current egg</span>
@@ -918,25 +900,30 @@ function HomeScreen({
         </button>
       </div>
 
-      <div className="loop-progress-card" aria-label="Progress loops">
-        <div className="loop-progress-title">Progress Loops</div>
+      <div className="idle-loop-dashboard" aria-label="Idle progress loops">
         <ProgressLoop
-          label="Egg progress"
+          label="Egg Loop"
           percent={eggLoopProgress.percent}
           status={eggLoopProgress.status}
           variant="egg"
         />
         <ProgressLoop
-          label="Tier progress"
+          label="Tier Loop"
           percent={tierProgress.progressPercent}
-          status={getTierLoopStatus(tierProgress.progressPercent, tierProgress.nextTier)}
+          status={`${tierProgress.currentLabel} · ${getTierLoopStatus(tierProgress.progressPercent, tierProgress.nextTier)}`}
           variant="tier"
         />
         <ProgressLoop
-          label="Income progress"
+          label="Income Loop"
           percent={incomeLoopProgress.percent}
           status={incomeLoopProgress.status}
           variant="income"
+        />
+        <ProgressLoop
+          label="Essence Loop"
+          percent={essenceLoopProgress.percent}
+          status={essenceLoopProgress.status}
+          variant="essence"
         />
       </div>
 
@@ -959,7 +946,7 @@ interface LoopProgress {
 
 interface ProgressLoopProps extends LoopProgress {
   label: string;
-  variant: 'egg' | 'tier' | 'income';
+  variant: 'egg' | 'tier' | 'income' | 'essence';
 }
 
 function ProgressLoop({ label, percent, status, variant }: ProgressLoopProps) {
@@ -1058,6 +1045,18 @@ const getIncomeLoopProgress = (totalIncome: number): LoopProgress => {
         : nextMilestone - totalIncome <= Math.max(5, range * 0.12)
           ? 'Almost ready'
           : `Next at ${formatNumber(nextMilestone)}/min`,
+  };
+};
+
+const getEssenceLoopProgress = (gameState: GameState, essenceGain: number): LoopProgress => {
+  const nextEssence = essenceGain + 1;
+  const currentTarget = Math.pow(essenceGain, 2) * ECONOMY.prestigeEssenceDivisor;
+  const nextTarget = Math.pow(nextEssence, 2) * ECONOMY.prestigeEssenceDivisor;
+  const range = Math.max(1, nextTarget - currentTarget);
+
+  return {
+    percent: ((gameState.totalCoinsEarned - currentTarget) / range) * 100,
+    status: essenceGain > 0 ? `+${formatNumber(essenceGain)} ready` : `Next at ${formatNumber(nextTarget)} coins`,
   };
 };
 
