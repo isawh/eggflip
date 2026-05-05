@@ -2693,3 +2693,47 @@ button:disabled {
     font-size: 8px;
   }
 }
+
+@media (max-width: 430px) {
+  .bottom-nav {
+    width: calc(100% - 24px);
+    max-width: 560px;
+    padding: 5px;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+
+  .nav-item {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    min-height: 44px;
+    padding: 3px 1px;
+    gap: 0;
+    overflow: hidden;
+    box-sizing: border-box;
+    flex-wrap: nowrap;
+  }
+
+  .nav-item span {
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    box-sizing: border-box;
+  }
+
+  .nav-item span:first-child {
+    font-size: 18px;
+    line-height: 1;
+  }
+
+  .nav-item span:last-child {
+    font-size: 10px;
+    line-height: 1;
+  }
+}
