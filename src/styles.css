@@ -636,21 +636,28 @@ h2 {
 .home-loops-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-rows: repeat(3, minmax(0, 1fr));
-  gap: 5px;
+  grid-template-rows: repeat(3, auto);
+  align-content: start;
+  gap: 3px;
   width: 100%;
   flex: 1 1 auto;
   min-height: 0;
 }
 
 .home-loop-card {
-  padding: 4px 3px;
+  box-sizing: border-box;
+  padding: 2px 1px;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 2px;
-  height: 100%;
+  align-self: start;
+  justify-self: stretch;
+  width: 100%;
+  gap: 0;
+  height: auto;
   min-height: 0;
+  max-height: none;
+  justify-content: flex-start;
   text-align: center;
   border: 2px solid var(--eggflip-border-color);
   border-radius: 8px;
@@ -758,11 +765,12 @@ h2 {
 .home-loop-name {
   font-size: 9px;
   font-weight: 1000;
+  line-height: 1.05;
   color: var(--eggflip-border-color);
 }
 
 .home-screen .home-loop-card-head .generator-loop-payout-chip {
-  font-size: 5.5px;
+  font-size: 6px;
   padding: 0 3px;
   line-height: 1.35;
 }
@@ -772,6 +780,7 @@ h2 {
   display: grid;
   place-items: center;
   min-height: 0;
+  margin: 0;
 }
 
 .home-loop-ring {
@@ -779,7 +788,7 @@ h2 {
   --ring-accent: #75ff9f;
   --ring-accent2: #fff176;
   position: relative;
-  width: 58px;
+  width: clamp(78px, 24vw, 86px);
   aspect-ratio: 1;
   display: grid;
   place-items: center;
@@ -833,7 +842,7 @@ h2 {
 
 .home-loop-ring-inner {
   position: absolute;
-  inset: 5px;
+  inset: 7px;
   border-radius: inherit;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(224, 255, 233, 0.5)),
@@ -864,12 +873,12 @@ h2 {
   z-index: 1;
   display: grid;
   justify-items: center;
-  gap: 0;
-  max-width: 54px;
+  gap: 1px;
+  max-width: 68px;
 }
 
 .home-loop-ring-core strong {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 1000;
   line-height: 1;
   color: var(--eggflip-border-color);
@@ -881,7 +890,7 @@ h2 {
 }
 
 .home-loop-ring-label {
-  font-size: 6px;
+  font-size: 7px;
   font-weight: 1000;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -890,17 +899,21 @@ h2 {
 
 .home-loop-unlock-hint {
   margin: 0;
-  padding: 0 2px;
+  padding: 1px 3px;
   flex: 0 0 auto;
-  font-size: 6px;
+  font-size: 8px;
   font-weight: 1000;
-  line-height: 1.2;
-  color: #607083;
+  line-height: 1.35;
+  color: #2a3d52;
 }
 
 .home-loop-ring--locked {
-  opacity: 0.68;
-  filter: grayscale(0.08);
+  opacity: 0.78;
+  filter: grayscale(0.06);
+}
+
+.home-loop-card--placeholder .home-loop-ring--locked {
+  opacity: 0.84;
 }
 
 .home-loop-ring--snap {
@@ -921,16 +934,17 @@ h2 {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1px;
+  gap: 0;
   font-weight: 1000;
   color: #405d77;
+  margin-top: 1px;
 }
 
 .home-loop-stats--footer {
   flex-direction: row;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 4px 8px;
+  gap: 2px 4px;
   row-gap: 0;
 }
 
@@ -939,8 +953,8 @@ h2 {
 }
 
 .home-loop-progress {
-  font-size: 7.5px;
-  line-height: 1.1;
+  font-size: 8px;
+  line-height: 1.15;
 }
 
 .home-loop-level {
@@ -949,42 +963,91 @@ h2 {
 }
 
 .home-loop-upgrade {
+  flex: 0 0 auto;
   width: 100%;
   max-width: none;
-  margin-top: auto;
-  font-size: 8px !important;
-  padding: 4px 3px !important;
-  min-height: 26px;
+  align-self: stretch;
+  margin-top: 1px;
+  margin-bottom: 0;
+  box-sizing: border-box;
+  min-height: 30px !important;
+  height: auto !important;
+  max-height: 32px;
+  padding: 2px 4px !important;
+  font-size: 9px !important;
+  font-weight: 1000 !important;
+  line-height: 1.05 !important;
+  border-width: 2px !important;
+  box-shadow: 0 2px 0 var(--eggflip-border-color), inset 0 2px 0 rgba(255, 255, 255, 0.72) !important;
 }
 
 @media (max-width: 430px) {
   .home-loops-grid {
-    gap: 4px !important;
+    gap: 3px !important;
+    align-content: start !important;
+  }
+
+  .home-loop-card {
+    padding: 2px 1px !important;
+    gap: 0 !important;
   }
 
   .home-loop-ring {
-    width: 52px !important;
+    width: clamp(78px, 21.75vw, 86px) !important;
   }
 
   .home-loop-ring-inner {
-    inset: 4px !important;
+    inset: 7px !important;
   }
 
   .home-loop-ring-core strong {
-    font-size: 9px !important;
+    font-size: 12px !important;
   }
 
-  .home-loop-unlock-hint {
-    font-size: 6px !important;
-  }
-
-  .home-loop-progress {
+  .home-loop-ring-label {
     font-size: 7px !important;
   }
 
+  .home-loop-unlock-hint {
+    font-size: 8.5px !important;
+    line-height: 1.35 !important;
+    padding-left: 3px !important;
+    padding-right: 3px !important;
+  }
+
+  .home-loop-ring--locked .home-loop-ring-label {
+    font-size: 8.5px !important;
+    letter-spacing: 0.03em !important;
+    color: #4a5d72 !important;
+  }
+
+  .home-loop-reward-locked {
+    font-size: 12px !important;
+  }
+
+  .home-loop-progress {
+    font-size: 8px !important;
+  }
+
+  .home-loop-level {
+    font-size: 8px !important;
+  }
+
+  .home-loop-upgrade {
+    min-height: 30px !important;
+    max-height: 32px !important;
+    padding: 2px 4px !important;
+    font-size: 8.5px !important;
+  }
+
   .home-loop-card .generator-best-badge {
-    font-size: 5px !important;
-    padding: 0 2px !important;
+    font-size: 5.5px !important;
+    padding: 0 3px !important;
+  }
+
+  .home-loop-card-head--compact .generator-loop-payout-chip {
+    max-width: 64px !important;
+    font-size: 6px !important;
   }
 }
 
@@ -5025,7 +5088,7 @@ button:disabled {
   }
 
   .home-screen .home-loops-grid {
-    flex: 1 1 auto !important;
+    flex: 0 1 auto !important;
     min-height: 0 !important;
   }
 
@@ -5041,10 +5104,10 @@ button:disabled {
     flex-direction: row !important;
     align-items: center !important;
     justify-content: flex-start !important;
-    gap: 6px !important;
+    gap: 5px !important;
     text-align: left !important;
-    min-height: 36px !important;
-    padding: 5px 10px !important;
+    min-height: 32px !important;
+    padding: 4px 8px !important;
   }
 
   .home-screen .home-stats--coin-only .stat-icon {
@@ -5449,6 +5512,12 @@ button:disabled {
   .progress-goal-grid .loop-progress-row {
     min-height: 62px !important;
     padding: 8px !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .screen-content.home-screen {
+    gap: 3px !important;
   }
 }
 
