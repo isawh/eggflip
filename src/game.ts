@@ -24,6 +24,7 @@ import type {
   EggType,
   GameState,
   IdleGeneratorId,
+  IdleGeneratorState,
   OwnedCreature,
   PrestigeUpgradeId,
   Rarity,
@@ -31,6 +32,19 @@ import type {
 } from './types';
 
 const fallbackCreature = CREATURES[0];
+
+const IDLE_GENERATOR_ID_LIST = Object.keys(IDLE_GENERATORS) as IdleGeneratorId[];
+
+const COIN_IDLE_GENERATOR_IDS = IDLE_GENERATOR_ID_LIST.filter((id) => IDLE_GENERATORS[id].rewardType === 'coins');
+
+const createFreshIdleGenerators = (now: number): Record<IdleGeneratorId, IdleGeneratorState> =>
+  IDLE_GENERATOR_ID_LIST.reduce(
+    (acc, id) => {
+      acc[id] = { level: 1, lastCollectedAt: now };
+      return acc;
+    },
+    {} as Record<IdleGeneratorId, IdleGeneratorState>,
+  );
 
 export const getCreatureDefinition = (creatureId: string): CreatureDefinition =>
   CREATURES.find((creature) => creature.id === creatureId) ?? fallbackCreature;
@@ -77,8 +91,64 @@ export const getIncomeBoostMultiplier = (state: GameState, now = Date.now()): nu
 export const getIncomeBoostRemainingMs = (state: GameState, now = Date.now()): number =>
   Math.max(0, (state.incomeBoostUntil ?? 0) - now);
 
-export const isIdleGeneratorUnlocked = (state: GameState, id: IdleGeneratorId): boolean =>
-  state.playerTier >= IDLE_GENERATORS[id].unlockTier;
+export const isIdleGeneratorUnlocked = (state: GameState, id: IdleGeneratorId): boolean => {
+  const cfg = IDLE_GENERATORS[id];
+  if (cfg.minEssence !== undefined) {
+    return state.essence >= cfg.minEssence;
+  }
+
+  const tierReq = cfg.unlockTier ?? 1;
+  return state.playerTier >= tierReq;
+};
+
+/** User-facing lock hint (null when unlocked). */
+export const getIdleGeneratorLockHint = (state: GameState, id: IdleGeneratorId): string | null => {
+  if (isIdleGeneratorUnlocked(state, id)) {
+    return null;
+  }
+
+  const cfg = IDLE_GENERATORS[id];
+
+  if (cfg.minEssence !== undefined) {
+    return `Unlock at Essence ${formatNumber(cfg.minEssence)}`;
+  }
+
+  if (cfg.unlockTier !== undefined) {
+    return `Unlock at Tier ${cfg.unlockTier}`;
+  }
+
+  return 'Locked';
+};
+
+/** Progress toward unlocking (only when locked). Uses same gates as `isIdleGeneratorUnlocked`. */
+export const getIdleGeneratorUnlockProgress = (
+  state: GameState,
+  id: IdleGeneratorId,
+): {
+  kind: 'tier' | 'essence';
+  current: number;
+  required: number;
+  /** 0..1 */
+  ratio: number;
+} | null => {
+  if (isIdleGeneratorUnlocked(state, id)) {
+    return null;
+  }
+
+  const cfg = IDLE_GENERATORS[id];
+
+  if (cfg.minEssence !== undefined) {
+    const required = cfg.minEssence;
+    const current = state.essence;
+    const ratio = required > 0 ? Math.min(1, Math.max(0, current / required)) : 0;
+    return { kind: 'essence', current, required, ratio };
+  }
+
+  const required = cfg.unlockTier ?? 1;
+  const current = state.playerTier;
+  const ratio = required > 0 ? Math.min(1, Math.max(0, current / required)) : 0;
+  return { kind: 'tier', current, required, ratio };
+};
 
 export const getIdleGeneratorCoinsForLevel = (
   state: GameState,
@@ -91,12 +161,38 @@ export const getIdleGeneratorCoinsForLevel = (
   }
 
   const cfg = IDLE_GENERATORS[id];
+
+  if (cfg.rewardType !== 'coins') {
+    return 0;
+  }
+
   const raw = cfg.baseCoinsPerCycle * level;
   return Math.round(raw * getPrestigeIncomeMultiplier(state) * getIncomeBoostMultiplier(state, now));
 };
 
+export const getIdleGeneratorFragmentsForLevel = (
+  state: GameState,
+  id: IdleGeneratorId,
+  level: number,
+): number => {
+  if (!isIdleGeneratorUnlocked(state, id) || level < 1) {
+    return 0;
+  }
+
+  const cfg = IDLE_GENERATORS[id];
+
+  if (cfg.rewardType !== 'essenceFragments') {
+    return 0;
+  }
+
+  return Math.max(0, Math.round(cfg.baseFragmentsPerCycle * level));
+};
+
 export const getIdleGeneratorCoinsPerCycle = (state: GameState, id: IdleGeneratorId, now: number): number =>
   getIdleGeneratorCoinsForLevel(state, id, state.idleGenerators[id].level, now);
+
+export const getIdleGeneratorFragmentsPerCycle = (state: GameState, id: IdleGeneratorId): number =>
+  getIdleGeneratorFragmentsForLevel(state, id, state.idleGenerators[id].level);
 
 /** Steady-state coins/min from this generator (unlocked only). */
 export const getIdleGeneratorIncomePerMinute = (state: GameState, id: IdleGeneratorId, now: number): number => {
@@ -148,14 +244,12 @@ export const getIdleGeneratorUpgradeRoiScore = (state: GameState, id: IdleGenera
   return deltaCps / cost;
 };
 
-const IDLE_GEN_ORDER: IdleGeneratorId[] = ['basic', 'advanced', 'elite'];
-
 export const getBestIdleGeneratorUpgradeId = (state: GameState, now: number): IdleGeneratorId | null => {
   let best: IdleGeneratorId | null = null;
   let bestRoi = 0;
   let bestDelta = 0;
 
-  for (const id of IDLE_GEN_ORDER) {
+  for (const id of COIN_IDLE_GENERATOR_IDS) {
     if (!isIdleGeneratorUnlocked(state, id)) {
       continue;
     }
@@ -175,7 +269,7 @@ export const getBestIdleGeneratorUpgradeId = (state: GameState, now: number): Id
 
 export const getIdleGeneratorsTotalIncomePerMinute = (state: GameState, now: number): number => {
   let total = 0;
-  for (const id of IDLE_GEN_ORDER) {
+  for (const id of COIN_IDLE_GENERATOR_IDS) {
     if (!isIdleGeneratorUnlocked(state, id)) {
       continue;
     }
@@ -379,29 +473,26 @@ export const createOwnedCreature = (definition: CreatureDefinition, now = Date.n
   hatchedAt: now,
 });
 
-const shiftIdleTimers = (state: GameState, deltaMs: number): GameState =>
-  deltaMs <= 0
-    ? state
-    : {
-        ...state,
-        mainLoopLastPayoutAt: state.mainLoopLastPayoutAt + deltaMs,
-        idleGenerators: {
-          basic: {
-            ...state.idleGenerators.basic,
-            lastCollectedAt: state.idleGenerators.basic.lastCollectedAt + deltaMs,
-          },
-          advanced: {
-            ...state.idleGenerators.advanced,
-            lastCollectedAt: state.idleGenerators.advanced.lastCollectedAt + deltaMs,
-          },
-          elite: {
-            ...state.idleGenerators.elite,
-            lastCollectedAt: state.idleGenerators.elite.lastCollectedAt + deltaMs,
-          },
-        },
-      };
+const shiftIdleTimers = (state: GameState, deltaMs: number): GameState => {
+  if (deltaMs <= 0) {
+    return state;
+  }
 
-/** Apply all deterministic cycle payouts with timestamps capped at `until` (coins only; does not bump lastActiveAt). */
+  const idleGenerators = { ...state.idleGenerators };
+
+  for (const id of IDLE_GENERATOR_ID_LIST) {
+    const gen = idleGenerators[id];
+    idleGenerators[id] = { ...gen, lastCollectedAt: gen.lastCollectedAt + deltaMs };
+  }
+
+  return {
+    ...state,
+    mainLoopLastPayoutAt: state.mainLoopLastPayoutAt + deltaMs,
+    idleGenerators,
+  };
+};
+
+/** Coins + Prestige-loop fragments; timestamps capped at `until` (does not bump lastActiveAt). */
 export const accrueIdlePayoutsAt = (state: GameState, until: number): GameState => {
   let next = { ...state };
   const mainTicks = Math.floor((until - next.mainLoopLastPayoutAt) / MAIN_IDLE_CYCLE_MS);
@@ -417,7 +508,7 @@ export const accrueIdlePayoutsAt = (state: GameState, until: number): GameState 
     };
   }
 
-  for (const id of Object.keys(IDLE_GENERATORS) as IdleGeneratorId[]) {
+  for (const id of IDLE_GENERATOR_ID_LIST) {
     if (!isIdleGeneratorUnlocked(next, id)) {
       continue;
     }
@@ -430,18 +521,32 @@ export const accrueIdlePayoutsAt = (state: GameState, until: number): GameState 
       continue;
     }
 
-    const perCycle = getIdleGeneratorCoinsPerCycle(next, id, until);
-    const total = ticks * perCycle;
+    if (cfg.rewardType === 'coins') {
+      const perCycle = getIdleGeneratorCoinsPerCycle(next, id, until);
+      const total = ticks * perCycle;
 
-    next = {
-      ...next,
-      coins: next.coins + total,
-      totalCoinsEarned: next.totalCoinsEarned + total,
-      idleGenerators: {
-        ...next.idleGenerators,
-        [id]: { ...gen, lastCollectedAt: gen.lastCollectedAt + ticks * cfg.cycleMs },
-      },
-    };
+      next = {
+        ...next,
+        coins: next.coins + total,
+        totalCoinsEarned: next.totalCoinsEarned + total,
+        idleGenerators: {
+          ...next.idleGenerators,
+          [id]: { ...gen, lastCollectedAt: gen.lastCollectedAt + ticks * cfg.cycleMs },
+        },
+      };
+    } else {
+      const perCycle = getIdleGeneratorFragmentsPerCycle(next, id);
+      const total = ticks * perCycle;
+
+      next = {
+        ...next,
+        essenceFragments: next.essenceFragments + total,
+        idleGenerators: {
+          ...next.idleGenerators,
+          [id]: { ...gen, lastCollectedAt: gen.lastCollectedAt + ticks * cfg.cycleMs },
+        },
+      };
+    }
   }
 
   return next;
@@ -734,11 +839,8 @@ export const applyPrestigeReset = (state: GameState, now = Date.now()): GameStat
     creatures: [],
     selectedCreatureUid: null,
     mainLoopLastPayoutAt: now,
-    idleGenerators: {
-      basic: { level: 1, lastCollectedAt: now },
-      advanced: { level: 1, lastCollectedAt: now },
-      elite: { level: 1, lastCollectedAt: now },
-    },
+    idleGenerators: createFreshIdleGenerators(now),
+    essenceFragments: 0,
     lastIncomeAt: now,
     lastActiveAt: now,
     lastFreeEggAt: now,

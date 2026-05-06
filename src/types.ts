@@ -8,12 +8,10 @@ export type PrestigeUpgradeId = 'income' | 'slot' | 'cooldown' | 'dropChance';
 
 export type PrestigeUpgrades = Record<PrestigeUpgradeId, number>;
 
-export type IdleGeneratorId = 'basic' | 'advanced' | 'elite';
+export type IdleGeneratorId = 'basic' | 'advanced' | 'elite' | 'quantum' | 'core' | 'prestige';
 
-/** Placeholder Home loop slots (no economy logic yet). */
-export type HomePlaceholderLoopId = 'quantum' | 'core' | 'prestige';
-
-export type HomeLoopSlotId = IdleGeneratorId | HomePlaceholderLoopId;
+/** Home grid slot id (same as idle loop generator id). */
+export type HomeLoopSlotId = IdleGeneratorId;
 
 export interface IdleGeneratorState {
   level: number;
@@ -85,6 +83,8 @@ export interface GameState {
   coins: number;
   gems: number;
   essence: number;
+  /** From the Prestige loop; spent separately from run Essence if we add sinks later. */
+  essenceFragments: number;
   totalCoinsEarned: number;
   prestigeCount: number;
   prestigeUpgrades: PrestigeUpgrades;

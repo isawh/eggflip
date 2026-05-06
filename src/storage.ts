@@ -1,5 +1,6 @@
 import {
   REFERRAL_MILESTONES,
+  IDLE_GENERATOR_IDS,
   STARTING_COINS,
   STARTING_FREE_EGGS,
   STARTING_GEMS,
@@ -38,6 +39,7 @@ export const createInitialGameState = (now = Date.now()): GameState => ({
   coins: STARTING_COINS,
   gems: STARTING_GEMS,
   essence: 0,
+  essenceFragments: 0,
   totalCoinsEarned: 0,
   prestigeCount: 0,
   prestigeUpgrades: defaultPrestigeUpgrades(),
@@ -50,11 +52,13 @@ export const createInitialGameState = (now = Date.now()): GameState => ({
   lastActiveAt: now,
   lastFreeEggAt: now,
   incomeBoostUntil: null,
-  idleGenerators: {
-    basic: { level: 1, lastCollectedAt: now },
-    advanced: { level: 1, lastCollectedAt: now },
-    elite: { level: 1, lastCollectedAt: now },
-  },
+  idleGenerators: IDLE_GENERATOR_IDS.reduce(
+    (acc, id) => {
+      acc[id] = { level: 1, lastCollectedAt: now };
+      return acc;
+    },
+    {} as GameState['idleGenerators'],
+  ),
   playerTier: STARTING_TIER,
   maxCreatureSlots: STARTING_MAX_CREATURE_SLOTS,
   referralCode: createReferralCode(),
@@ -121,6 +125,7 @@ export const loadGameState = (): GameState => {
       coins: asCount(saved.coins, base.coins),
       gems: asCount(saved.gems, base.gems),
       essence: asCount(saved.essence, base.essence),
+      essenceFragments: asCount(saved.essenceFragments, base.essenceFragments),
       totalCoinsEarned: asCount(saved.totalCoinsEarned, asCount(saved.coins, base.totalCoinsEarned)),
       prestigeCount: asCount(saved.prestigeCount, base.prestigeCount),
       prestigeUpgrades,
@@ -171,8 +176,6 @@ export const saveGameState = (state: GameState) => {
 
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 };
-
-const IDLE_GENERATOR_IDS: IdleGeneratorId[] = ['basic', 'advanced', 'elite'];
 
 const mergeIdleGenerators = (saved: unknown, base: GameState['idleGenerators']): GameState['idleGenerators'] => {
   if (typeof saved !== 'object' || saved === null) {

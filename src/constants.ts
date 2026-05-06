@@ -3,7 +3,6 @@ import type {
   DailyReward,
   EggType,
   HomeLoopSlotId,
-  HomePlaceholderLoopId,
   IdleGeneratorId,
   PrestigeUpgradeId,
   Rarity,
@@ -36,20 +35,37 @@ export const MAIN_IDLE_BASE_COINS = 8;
 /** Gentle cue when no generator upgrade happened for a while (UI only). */
 export const IDLE_UPGRADE_PRESSURE_MS = 75_000;
 
-export const IDLE_GENERATORS: Record<IdleGeneratorId, {
+type IdleGeneratorBase = {
   id: IdleGeneratorId;
   title: string;
-  unlockTier: Tier;
+  /** Opens when `playerTier` reaches this tier (unless `minEssence` is set). */
+  unlockTier?: Tier;
+  /** Opens when run Essence reaches this amount (currency in prestige screen). */
+  minEssence?: number;
   cycleMs: number;
-  baseCoinsPerCycle: number;
   upgradeBaseCost: number;
   upgradeCostMultiplier: number;
-}> = {
+};
+
+type IdleGeneratorCoins = IdleGeneratorBase & {
+  rewardType: 'coins';
+  baseCoinsPerCycle: number;
+};
+
+type IdleGeneratorFragments = IdleGeneratorBase & {
+  rewardType: 'essenceFragments';
+  baseFragmentsPerCycle: number;
+};
+
+export type IdleGeneratorDefinition = IdleGeneratorCoins | IdleGeneratorFragments;
+
+export const IDLE_GENERATORS: Record<IdleGeneratorId, IdleGeneratorDefinition> = {
   basic: {
     id: 'basic',
     title: 'Basic Generator',
     unlockTier: 1,
     cycleMs: 2_800,
+    rewardType: 'coins',
     baseCoinsPerCycle: 2,
     upgradeBaseCost: 20,
     upgradeCostMultiplier: 1.42,
@@ -59,6 +75,7 @@ export const IDLE_GENERATORS: Record<IdleGeneratorId, {
     title: 'Advanced Generator',
     unlockTier: 2,
     cycleMs: 4_400,
+    rewardType: 'coins',
     baseCoinsPerCycle: 11,
     upgradeBaseCost: 160,
     upgradeCostMultiplier: 1.52,
@@ -68,13 +85,51 @@ export const IDLE_GENERATORS: Record<IdleGeneratorId, {
     title: 'Elite Generator',
     unlockTier: 3,
     cycleMs: 6_500,
+    rewardType: 'coins',
     baseCoinsPerCycle: 45,
     upgradeBaseCost: 850,
     upgradeCostMultiplier: 1.6,
   },
+  quantum: {
+    id: 'quantum',
+    title: 'Quantum Generator',
+    unlockTier: 4,
+    cycleMs: 7_200,
+    rewardType: 'coins',
+    baseCoinsPerCycle: 95,
+    upgradeBaseCost: 4_800,
+    upgradeCostMultiplier: 1.56,
+  },
+  core: {
+    id: 'core',
+    title: 'Core Generator',
+    unlockTier: 5,
+    cycleMs: 22_000,
+    rewardType: 'coins',
+    baseCoinsPerCycle: 1_100,
+    upgradeBaseCost: 25_000,
+    upgradeCostMultiplier: 1.62,
+  },
+  prestige: {
+    id: 'prestige',
+    title: 'Prestige Loop',
+    minEssence: 25,
+    cycleMs: 11_000,
+    rewardType: 'essenceFragments',
+    baseFragmentsPerCycle: 1,
+    upgradeBaseCost: 12_000,
+    upgradeCostMultiplier: 1.55,
+  },
 };
 
-export const IDLE_GENERATOR_IDS: readonly IdleGeneratorId[] = ['basic', 'advanced', 'elite'];
+export const IDLE_GENERATOR_IDS: readonly IdleGeneratorId[] = [
+  'basic',
+  'advanced',
+  'elite',
+  'quantum',
+  'core',
+  'prestige',
+];
 
 /** Row-major 2×3 grid on Home: Basic·Speed | Power·Quantum | Core·Prestige */
 export const HOME_LOOP_SLOT_ORDER: readonly HomeLoopSlotId[] = [
@@ -85,15 +140,6 @@ export const HOME_LOOP_SLOT_ORDER: readonly HomeLoopSlotId[] = [
   'core',
   'prestige',
 ];
-
-export const HOME_PLACEHOLDER_META: Record<
-  HomePlaceholderLoopId,
-  { title: string; unlockTier?: Tier; minEssence?: number }
-> = {
-  quantum: { title: 'Quantum', unlockTier: 4 },
-  core: { title: 'Core', unlockTier: 5 },
-  prestige: { title: 'Prestige', minEssence: 25 },
-};
 
 // Economy knobs live here so egg prices, upgrades, rewards, and income can be tuned later.
 export const ECONOMY = {

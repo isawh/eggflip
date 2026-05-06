@@ -24,7 +24,6 @@ import {
   IDLE_GENERATOR_IDS,
   IDLE_UPGRADE_PRESSURE_MS,
   HOME_LOOP_SLOT_ORDER,
-  HOME_PLACEHOLDER_META,
   INCOME_BOOST_DURATION_MS,
   INVITE_POPUP_HATCH_THRESHOLD,
   PRESTIGE_UPGRADES,
@@ -52,7 +51,9 @@ import {
   getFreeEggReadyAt,
   getGeneratorUpgradeCost,
   getIdleGeneratorCoinsPerCycle,
+  getIdleGeneratorFragmentsPerCycle,
   getIdleGeneratorLoopPhase,
+  getIdleGeneratorUnlockProgress,
   getIncomeBoostRemainingMs,
   getNextDailyReward,
   getPrestigeEssenceGain,
@@ -81,8 +82,6 @@ import type {
   CreatureDefinition,
   EggType,
   GameState,
-  HomeLoopSlotId,
-  HomePlaceholderLoopId,
   IdleGeneratorId,
   OwnedCreature,
   PrestigeUpgradeId,
@@ -114,6 +113,9 @@ const HOME_LOOP_LABELS: Record<IdleGeneratorId, string> = {
   basic: 'Basic',
   advanced: 'Speed',
   elite: 'Power',
+  quantum: 'Quantum',
+  core: 'Core',
+  prestige: 'Prestige',
 };
 
 /** Flash + one frame without CSS transition when `cycleStartAt` advances (real payout boundary). */
@@ -157,8 +159,9 @@ function useIdleCyclePayoutCue(
 function useIdleGeneratorCyclePayoutCue(
   cycleStartAt: number,
   cycleDurationMs: number,
-  coinsPerCycle: number,
+  amountPerCycle: number,
   active: boolean,
+  rewardKind: 'coins' | 'fragments',
 ): { payoutFlash: boolean; snapPhase: boolean; payoutCoinLabel: string | null } {
   const anchorRef = useRef(cycleStartAt);
   const [payoutFlash, setPayoutFlash] = useState(false);
@@ -185,8 +188,14 @@ function useIdleGeneratorCyclePayoutCue(
 
     const advance = cycleStartAt - prevStart;
     const ticks = Math.max(1, Math.floor(advance / cycleDurationMs));
-    const total = Math.round(ticks * coinsPerCycle);
-    const label = total > 0 ? `+${formatNumber(total)}` : '+0';
+    const total = Math.round(ticks * amountPerCycle);
+
+    let label: string | null = null;
+    if (total > 0) {
+      label = rewardKind === 'coins' ? `+${formatNumber(total)}` : `✨ +${formatNumber(total)}`;
+    } else if (rewardKind === 'coins') {
+      label = '+0';
+    }
 
     anchorRef.current = cycleStartAt;
     setPayoutFlash(true);
@@ -197,7 +206,7 @@ function useIdleGeneratorCyclePayoutCue(
     }, IDLE_PAYOUT_FLASH_MS);
 
     return () => window.clearTimeout(timeoutId);
-  }, [cycleStartAt, cycleDurationMs, coinsPerCycle, active]);
+  }, [cycleStartAt, cycleDurationMs, amountPerCycle, active, rewardKind]);
 
   return { payoutFlash, snapPhase, payoutCoinLabel };
 }
@@ -1017,20 +1026,6 @@ interface HomeScreenProps {
   onUpgradeGenerator: (id: IdleGeneratorId) => void;
 }
 
-function isIdleGeneratorSlot(id: HomeLoopSlotId): id is IdleGeneratorId {
-  return id === 'basic' || id === 'advanced' || id === 'elite';
-}
-
-function placeholderUnlockLabel(meta: (typeof HOME_PLACEHOLDER_META)[HomePlaceholderLoopId]): string {
-  if (meta.unlockTier !== undefined) {
-    return `Unlock at Tier ${meta.unlockTier}`;
-  }
-  if (meta.minEssence !== undefined) {
-    return `Unlock at Essence ${formatNumber(meta.minEssence)}`;
-  }
-  return 'Locked';
-}
-
 function HomeScreen({ gameState, now, mainLoopPaidRef, onUpgradeGenerator }: HomeScreenProps) {
   const bestUpgradeId = useMemo(
     () => getBestIdleGeneratorUpgradeId(gameState, now),
@@ -1039,7 +1034,11 @@ function HomeScreen({ gameState, now, mainLoopPaidRef, onUpgradeGenerator }: Hom
       gameState.idleGenerators.basic.level,
       gameState.idleGenerators.advanced.level,
       gameState.idleGenerators.elite.level,
+      gameState.idleGenerators.quantum.level,
+      gameState.idleGenerators.core.level,
+      gameState.idleGenerators.prestige.level,
       gameState.playerTier,
+      gameState.essence,
       gameState.prestigeUpgrades.income,
       gameState.incomeBoostUntil,
       gameState.lastIdleGeneratorUpgradeAt,
@@ -1055,56 +1054,17 @@ function HomeScreen({ gameState, now, mainLoopPaidRef, onUpgradeGenerator }: Hom
       </section>
 
       <div className="home-loops-grid" aria-label="Idle loops">
-        {HOME_LOOP_SLOT_ORDER.map((slot) =>
-          isIdleGeneratorSlot(slot) ? (
-            <HomeCircularLoopCard
-              bestUpgradeId={bestUpgradeId}
-              gameState={gameState}
-              generatorId={slot}
-              key={slot}
-              now={now}
-              onUpgrade={() => onUpgradeGenerator(slot)}
-            />
-          ) : (
-            <HomeLockedLoopCard key={slot} slotId={slot} />
-          ),
-        )}
+        {HOME_LOOP_SLOT_ORDER.map((slot) => (
+          <HomeCircularLoopCard
+            bestUpgradeId={bestUpgradeId}
+            gameState={gameState}
+            generatorId={slot}
+            key={slot}
+            now={now}
+            onUpgrade={() => onUpgradeGenerator(slot)}
+          />
+        ))}
       </div>
-    </div>
-  );
-}
-
-function HomeLockedLoopCard({ slotId }: { slotId: HomePlaceholderLoopId }) {
-  const meta = HOME_PLACEHOLDER_META[slotId];
-  return (
-    <div
-      aria-label={`${meta.title} locked`}
-      className={['home-loop-card', 'home-loop-card--placeholder', `home-loop-card--${slotId}`].join(' ')}
-    >
-      <div className="home-loop-card-head home-loop-card-head--compact">
-        <div className="home-loop-name-row">
-          <span className="home-loop-name">{meta.title}</span>
-        </div>
-      </div>
-      <div className="home-loop-ring-wrap">
-        <div
-          className={['home-loop-ring', 'home-loop-ring--locked', 'home-loop-ring--placeholder', `home-loop-ring--${slotId}`].join(' ')}
-          style={{ '--cycle-progress': '0deg' } as CSSProperties}
-        >
-          <div className="home-loop-ring-inner" />
-          <div className="home-loop-ring-core">
-            <strong className="home-loop-reward-locked">—</strong>
-            <span className="home-loop-ring-label">locked</span>
-          </div>
-        </div>
-      </div>
-      <p className="home-loop-unlock-hint">{placeholderUnlockLabel(meta)}</p>
-      <div className="home-loop-stats home-loop-stats--footer">
-        <span className="home-loop-level">Lv —</span>
-      </div>
-      <button className="generator-upgrade-btn home-loop-upgrade" disabled type="button">
-        —
-      </button>
     </div>
   );
 }
@@ -1124,6 +1084,26 @@ function HomeCircularLoopCard({ gameState, generatorId, now, bestUpgradeId, onUp
   const phase = unlocked ? getIdleGeneratorLoopPhase(gameState, generatorId, now) : null;
   const progressPercent = phase?.progressPercent ?? 0;
 
+  const unlockProgress = !unlocked ? getIdleGeneratorUnlockProgress(gameState, generatorId) : null;
+
+  const prevUnlockedRef = useRef<boolean | null>(null);
+  const [unlockReveal, setUnlockReveal] = useState(false);
+
+  useEffect(() => {
+    const prev = prevUnlockedRef.current;
+    if (prev === null) {
+      prevUnlockedRef.current = unlocked;
+      return;
+    }
+    if (!prev && unlocked) {
+      setUnlockReveal(true);
+      const t = window.setTimeout(() => setUnlockReveal(false), 1050);
+      prevUnlockedRef.current = unlocked;
+      return () => window.clearTimeout(t);
+    }
+    prevUnlockedRef.current = unlocked;
+  }, [unlocked]);
+
   const prevGenLevelRef = useRef(gen.level);
   const [upgradeRushUntil, setUpgradeRushUntil] = useState(0);
 
@@ -1140,18 +1120,25 @@ function HomeCircularLoopCard({ gameState, generatorId, now, bestUpgradeId, onUp
   }, [gen.level, unlocked]);
 
   const upgradeRushActive = unlocked && upgradeRushUntil > now;
-  const incomePerCycle = unlocked ? getIdleGeneratorCoinsPerCycle(gameState, generatorId, now) : 0;
+
+  const rewardKind = cfg.rewardType === 'coins' ? 'coins' : 'fragments';
+  const payoutPerCycle = unlocked
+    ? rewardKind === 'coins'
+      ? getIdleGeneratorCoinsPerCycle(gameState, generatorId, now)
+      : getIdleGeneratorFragmentsPerCycle(gameState, generatorId)
+    : 0;
 
   const { payoutFlash, snapPhase, payoutCoinLabel } = useIdleGeneratorCyclePayoutCue(
     gen.lastCollectedAt,
     cfg.cycleMs,
-    incomePerCycle,
+    payoutPerCycle,
     unlocked,
+    rewardKind,
   );
 
   const cost = getGeneratorUpgradeCost(gameState, generatorId);
   const canBuy = canAffordGeneratorUpgrade(gameState, generatorId);
-  const isBest = unlocked && bestUpgradeId === generatorId;
+  const isBest = unlocked && rewardKind === 'coins' && bestUpgradeId === generatorId;
   const upgradePressure =
     unlocked && canBuy && now - gameState.lastIdleGeneratorUpgradeAt >= IDLE_UPGRADE_PRESSURE_MS;
 
@@ -1164,8 +1151,15 @@ function HomeCircularLoopCard({ gameState, generatorId, now, bestUpgradeId, onUp
     .join(' ');
 
   const cycleStyle = {
-    '--cycle-progress': unlocked ? `${progressPercent * 3.6}deg` : '0deg',
-  } as CSSProperties;
+    ...(unlocked
+      ? ({ '--cycle-progress': `${progressPercent * 3.6}deg` } as CSSProperties)
+      : unlockProgress !== null
+        ? ({ '--unlock-progress': `${unlockProgress.ratio * 360}deg` } as CSSProperties)
+        : {}),
+  };
+
+  const exoticLocked =
+    !unlocked && (generatorId === 'quantum' || generatorId === 'core' || generatorId === 'prestige');
 
   const ringClass = [
     `home-loop-ring home-loop-ring--${generatorId}`,
@@ -1173,15 +1167,29 @@ function HomeCircularLoopCard({ gameState, generatorId, now, bestUpgradeId, onUp
     payoutFlash ? 'home-loop-ring--pay-pulse' : '',
     upgradeRushActive ? 'home-loop-ring--rush' : '',
     !unlocked ? 'home-loop-ring--locked' : '',
+    exoticLocked ? 'home-loop-ring--placeholder' : '',
+    !unlocked && unlockProgress !== null ? 'home-loop-ring--unlock-track' : '',
+    !unlocked && unlockProgress?.kind === 'essence' ? 'home-loop-ring--unlock-by-essence' : '',
   ]
     .filter(Boolean)
     .join(' ');
+
+  const rewardPrimary =
+    unlocked && rewardKind === 'coins'
+      ? `+${formatNumber(getIdleGeneratorCoinsPerCycle(gameState, generatorId, now))}`
+      : unlocked && rewardKind === 'fragments'
+        ? `✨ +${formatNumber(getIdleGeneratorFragmentsPerCycle(gameState, generatorId))}`
+        : '—';
+
+  const rewardSubtitle = unlocked ? (rewardKind === 'coins' ? 'reward' : 'fragments') : 'locked';
 
   return (
     <div
       className={[
         'home-loop-card',
         `home-loop-card--${generatorId}`,
+        unlocked ? 'home-loop-card--loop-active' : 'home-loop-card--loop-locked',
+        unlockReveal ? 'home-loop-card--unlock-reveal' : '',
         isBest ? 'is-best-upgrade' : '',
         upgradeRushActive ? 'generator-loop-card--upgrade-rush' : '',
         snapPhase || payoutFlash ? 'generator-payout-flash' : '',
@@ -1193,7 +1201,7 @@ function HomeCircularLoopCard({ gameState, generatorId, now, bestUpgradeId, onUp
         <div className="home-loop-name-row">
           <span className="home-loop-name">{HOME_LOOP_LABELS[generatorId]}</span>
           {isBest && (
-            <span className="generator-best-badge" title="Highest ROI among generators">
+            <span className="generator-best-badge" title="Highest ROI among coin loops">
               Best
             </span>
           )}
@@ -1209,11 +1217,28 @@ function HomeCircularLoopCard({ gameState, generatorId, now, bestUpgradeId, onUp
         <div aria-label={`${HOME_LOOP_LABELS[generatorId]} loop progress`} className={ringClass} style={cycleStyle}>
           <div className="home-loop-ring-inner" />
           <div className="home-loop-ring-core">
-            <strong>{unlocked ? `+${formatNumber(incomePerCycle)}` : '—'}</strong>
-            <span className="home-loop-ring-label">reward</span>
+            <strong>{rewardPrimary}</strong>
+            <span className="home-loop-ring-label">{rewardSubtitle}</span>
           </div>
         </div>
       </div>
+
+      {unlockProgress ? (
+        <>
+          <p className="home-loop-unlock-progress-meta">
+            {unlockProgress.kind === 'tier'
+              ? `Tier ${unlockProgress.current} / ${unlockProgress.required}`
+              : `Essence ${formatNumber(unlockProgress.current)} / ${formatNumber(unlockProgress.required)}`}
+          </p>
+          <div className="home-loop-unlock-track" aria-hidden="true">
+            <div className="home-loop-unlock-fill" style={{ width: `${Math.round(unlockProgress.ratio * 1000) / 10}%` }} />
+          </div>
+        </>
+      ) : null}
+
+      {unlocked && generatorId === 'prestige' ? (
+        <p className="home-loop-prestige-frag-note">Fragments → ✦ upgrades</p>
+      ) : null}
 
       <div className="home-loop-stats home-loop-stats--footer">
         <span className="home-loop-progress">
@@ -1337,7 +1362,15 @@ function CollectionScreen({
           const cfg = IDLE_GENERATORS[id];
           const unlocked = isIdleGeneratorUnlocked(gameState, id);
           const level = gameState.idleGenerators[id].level;
-          const perCycle = unlocked ? getIdleGeneratorCoinsPerCycle(gameState, id, now) : 0;
+
+          let yieldLabel = '—';
+          if (unlocked) {
+            if (cfg.rewardType === 'coins') {
+              yieldLabel = `+${formatNumber(getIdleGeneratorCoinsPerCycle(gameState, id, now))}`;
+            } else {
+              yieldLabel = `✨ +${formatNumber(getIdleGeneratorFragmentsPerCycle(gameState, id))}`;
+            }
+          }
 
           return (
             <div className={`generator-status-row ${unlocked ? 'unlocked' : 'locked'}`} key={id}>
@@ -1345,9 +1378,7 @@ function CollectionScreen({
                 <strong>{cfg.title}</strong>
                 <span>Lv {level}</span>
               </div>
-              <div className="generator-status-detail">
-                {unlocked ? `+${formatNumber(perCycle)}` : '—'}
-              </div>
+              <div className="generator-status-detail">{yieldLabel}</div>
             </div>
           );
         })}
@@ -1872,6 +1903,10 @@ function PrestigeScreen({ gameState, onBuyUpgrade, onReset }: PrestigeScreenProp
         <div>
           <span>On reset</span>
           <strong>+{formatNumber(essenceGain)}</strong>
+        </div>
+        <div>
+          <span>Fragments</span>
+          <strong>{formatNumber(gameState.essenceFragments)}</strong>
         </div>
       </div>
 
